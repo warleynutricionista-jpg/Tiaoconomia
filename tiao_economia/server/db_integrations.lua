@@ -181,12 +181,14 @@ local function GetPlayersMoneyTotal(playersTable)
   for _, row in ipairs(rows) do
     local cash = 0
     local bank = 0
+    local crypto = 0
 
     if columns.money and row.money then
       local okDecode, decoded = pcall(function() return json.decode(row.money) end)
       if okDecode and type(decoded) == 'table' then
         cash = SafeNum(decoded.cash, cash)
         bank = SafeNum(decoded.bank, bank)
+        crypto = SafeNum(decoded.crypto, crypto)
       end
     end
 
@@ -198,7 +200,7 @@ local function GetPlayersMoneyTotal(playersTable)
       bank = SafeNum(row.bank, bank)
     end
 
-    total = total + cash + bank
+    total = total + cash + bank + crypto
   end
 
   return total
@@ -375,6 +377,106 @@ function DB.GetTotalMoneySupply()
     companyMoney = companyMoney,
     total = playerMoney + companyMoney,
   }
+end
+
+function DB.GetPlayerBankBalance(citizenid)
+  if not HasMySQL() then return 0 end
+  citizenid = SafeStr(citizenid, '')
+  if citizenid == '' then return 0 end
+
+  local dbCfg = GetDatabaseConfig()
+  local playersTable = dbCfg.Players or 'players'
+
+  if not TableExists(playersTable) then return 0 end
+
+  local columns = LoadColumns(playersTable)
+  if not columns or columns == false then return 0 end
+
+  local selectCols = {}
+  if columns.money then selectCols[#selectCols + 1] = 'money' end
+  if columns.bank then selectCols[#selectCols + 1] = 'bank' end
+
+  if #selectCols == 0 then return 0 end
+
+  local sql = ('SELECT %s FROM `%s` WHERE citizenid = ? LIMIT 1'):format(
+    table.concat(selectCols, ', '),
+    playersTable
+  )
+
+  local ok, row = pcall(function()
+    return MySQL.single.await(sql, { citizenid })
+  end)
+  if not ok or not row then return 0 end
+
+  local bank = 0
+  if columns.money and row.money then
+    local okDecode, decoded = pcall(function() return json.decode(row.money) end)
+    if okDecode and type(decoded) == 'table' then
+      bank = SafeNum(decoded.bank, bank)
+    end
+  end
+
+  if columns.bank then
+    bank = SafeNum(row.bank, bank)
+  end
+
+  return bank
+end
+
+function DB.GetExternalDebts(citizenid)
+  if not HasMySQL() then return 0 end
+  citizenid = SafeStr(citizenid, '')
+  if citizenid == '' then return 0 end
+  if not TableExists('ps_banking_bills') then return 0 end
+
+  local total = MySQL.scalar.await([[
+    SELECT COALESCE(SUM(amount), 0)
+    FROM ps_banking_bills
+    WHERE identifier = ? AND isPaid = 0
+  ]], { citizenid })
+
+  return SafeNum(total, 0)
+end
+
+function DB.GetFinancingDebt(citizenid)
+  if not HasMySQL() then return 0 end
+  citizenid = SafeStr(citizenid, '')
+  if citizenid == '' then return 0 end
+  if not TableExists('vehicle_financing') or not TableExists('player_vehicles') then return 0 end
+
+  local total = MySQL.scalar.await([[
+    SELECT COALESCE(SUM(vf.balance), 0)
+    FROM vehicle_financing vf
+    INNER JOIN player_vehicles pv ON vf.vehicleId = pv.id
+    WHERE pv.citizenid = ?
+  ]], { citizenid })
+
+  return SafeNum(total, 0)
+end
+
+function DB.GetTotalExternalDebts()
+  if not HasMySQL() then return 0 end
+  if not TableExists('ps_banking_bills') then return 0 end
+
+  local total = MySQL.scalar.await([[
+    SELECT COALESCE(SUM(amount), 0)
+    FROM ps_banking_bills
+    WHERE isPaid = 0
+  ]])
+
+  return SafeNum(total, 0)
+end
+
+function DB.GetTotalFinancingDebt()
+  if not HasMySQL() then return 0 end
+  if not TableExists('vehicle_financing') then return 0 end
+
+  local total = MySQL.scalar.await([[
+    SELECT COALESCE(SUM(balance), 0)
+    FROM vehicle_financing
+  ]])
+
+  return SafeNum(total, 0)
 end
 
 -- ===== schema (sem information_schema)
