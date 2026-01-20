@@ -400,6 +400,66 @@ CREATE TABLE IF NOT EXISTS space_economy_audit_log (
 
 ---
 
+### 2.4 Monitoramento e Alertas Automatizados 🟡
+
+**Funcionalidade Nova:**
+- Alertas em tempo real para anomalias (picos de inflação, quedas bruscas no tesouro)
+- Notificações para staff quando limites configuráveis forem ultrapassados
+- Painel de saúde do sistema (jobs, filas, integrações)
+
+**Implementação:**
+```lua
+-- Detectar anomalias simples a cada intervalo
+CreateThread(function()
+    while true do
+        Wait(300000) -- 5 minutos
+
+        local vault = SE.State.vaultBalance
+        local inflation = SE.State.inflationRate
+
+        if inflation > (Config.Alerts.MaxInflation or 0.15) then
+            SE.Alerts.Notify('inflation_spike', { inflation = inflation })
+        end
+
+        if vault < (Config.Alerts.MinVaultBalance or 100000) then
+            SE.Alerts.Notify('low_vault', { vault = vault })
+        end
+    end
+end)
+
+-- Módulo de alertas (Discord + log interno)
+function SE.Alerts.Notify(event, payload)
+    SE.Log('alert', event, payload)
+    if Config.Webhooks and Config.Webhooks.Alerts then
+        SE.Discord.SendEmbed(Config.Webhooks.Alerts, {
+            title = '🚨 Alerta Econômico',
+            description = ('Evento: %s'):format(event),
+            color = 15158332,
+            fields = {
+                { name = 'Detalhes', value = json.encode(payload), inline = false }
+            },
+            timestamp = os.date('!%Y-%m-%dT%H:%M:%S')
+        })
+    end
+end
+```
+
+**Configuração:**
+```lua
+Config.Alerts = {
+    MaxInflation = 0.15,
+    MinVaultBalance = 100000,
+    Enabled = true,
+}
+```
+
+**Benefícios:**
+- 🚨 Resposta rápida a crises
+- 🛡️ Prevenção de colapsos econômicos
+- 🧭 Visibilidade operacional
+
+---
+
 ## 🟢 **3. MELHORIAS DE QUALIDADE**
 
 ### 3.1 Sistema de Recompensas por Pagamento em Dia 🟢
@@ -506,6 +566,7 @@ Locale = {
 1. ✅ Dashboard de Métricas (2.1)
 2. ✅ Parcelamento Automático (2.2)
 3. ✅ Sistema de Auditoria (2.3)
+4. ✅ Monitoramento e Alertas (2.4)
 
 ### **Fase 3 - Qualidade (1-2 semanas)**
 1. ✅ Recompensas (3.1)
@@ -525,6 +586,7 @@ Locale = {
 - **Dashboard:** 📊 Gestão +200%, Custo: 8h dev
 - **Parcelamento:** 💳 Pagamentos +60%, Custo: 6h dev
 - **Auditoria:** 🔍 Compliance +100%, Custo: 4h dev
+- **Alertas:** 🚨 Resposta rápida +70%, Custo: 3h dev
 
 ---
 
