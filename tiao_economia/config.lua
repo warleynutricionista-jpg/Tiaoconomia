@@ -88,6 +88,56 @@ Config.TransactionTax = {
   ExemptAccounts = { 'cash' }, -- Isentar cash, taxar apenas bank
 }
 
+-- Alíquotas dinâmicas baseadas na realidade econômica (PIB per Capita)
+Config.DynamicTax = {
+  Enabled = true,
+  FallbackPIBPerCapita = 5000,
+  Brackets = {
+    { minMultiplier = 0.0, maxMultiplier = 0.5, rate = 0.00 }, -- Isento até 50% da média
+    { minMultiplier = 0.5, maxMultiplier = 1.5, rate = 0.10 }, -- Classe Média Baixa
+    { minMultiplier = 1.5, maxMultiplier = 5.0, rate = 0.20 }, -- Classe Média Alta
+    { minMultiplier = 5.0, maxMultiplier = 20.0, rate = 0.35 }, -- Ricos
+    { minMultiplier = 20.0, maxMultiplier = nil, rate = 0.60 }, -- Super ricos
+  }
+}
+
+-- Imposto sobre Grandes Fortunas (IGF)
+Config.WealthTax = {
+  Enabled = true,
+  TopPercentile = 0.05, -- Top 5% mais ricos
+  BaseRate = 0.02, -- 2% do patrimônio
+  ProgressiveMultiplier = 1.5, -- Escala progressiva
+  DueDays = 7,
+  CycleHours = 168, -- 1x por semana
+}
+
+-- Imposto de ociosidade (inativos)
+Config.WealthDecay = {
+  Enabled = true,
+  InactiveDays = 30,
+  MinWealth = 1000000,
+  DailyRate = 0.05,
+  MaxDailyRate = 0.10,
+}
+
+-- Anti-hoarding: imposto exponencial por quantidade de bens
+Config.AssetTax = {
+  Enabled = true,
+  VehicleMultiplier = 0.5, -- +50% por veículo extra
+  PropertyMultiplier = 0.5, -- +50% por propriedade extra
+  MaxMultiplier = 6.0,
+}
+
+-- Renda Básica Universal (UBI)
+Config.UBI = {
+  Enabled = true,
+  CheckIntervalHours = 12,
+  MinPlayers = 3,
+  MaxWealth = 20000,
+  MaxInactiveHours = 48,
+  Reason = 'Bolsa Cidadão (Redistribuição)',
+}
+
 -- ============================================================
 -- PERMISSÕES (Granular)
 -- ============================================================
@@ -156,6 +206,7 @@ Config.WarrantAlert = {
 Config.Treasury = {
   StartBalance = 0,
   MaxBalance = 999999999999, -- Limite máximo
+  MaxReserves = 5000000, -- Acima disso redistribui (UBI)
   
   -- Auditoria
   LogAllTransactions = true,
