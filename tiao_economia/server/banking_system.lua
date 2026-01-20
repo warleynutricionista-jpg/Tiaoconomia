@@ -312,7 +312,7 @@ function BS.Redeem(src, investmentId)
   ]], { netYield, tax, investmentId })
 
   -- Devolver dinheiro
-  SE.Integrations.AddMoney(src, 'bank', totalAmount, 'Resgate de investimento')
+  SE.Integrations.AddMoney(src, totalAmount, 'bank', 'resgate_investimento')
 
   registerTransaction('resgate_financeiro', totalAmount, {
     citizenid = citizenid,

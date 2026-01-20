@@ -64,7 +64,8 @@ function SE.Audit.Log(src, action, details)
 
     if ok then
         -- Também logar no sistema de logs normal
-        SE.Log('audit', ('%s: %s'):format(adminName, action), details)
+        local category = (action == 'security_flag') and 'security' or 'audit'
+        SE.Log(category, ('%s: %s'):format(adminName, action), details)
     end
 end
 

@@ -52,6 +52,7 @@ server_scripts {
   'server/backup.lua',          -- Backup automático
   'server/metrics.lua',         -- Dashboard de métricas
   'server/audit.lua',           -- Sistema de auditoria
+  'server/security_guard.lua',  -- Economy Guard
   'server/rewards.lua',         -- Sistema de recompensas
   'server/discord.lua',         -- Discord webhooks
 
@@ -61,6 +62,7 @@ server_scripts {
   'server/economic_events.lua',  -- Eventos econômicos dinâmicos
   'server/stock_market.lua',     -- Bolsa de valores
   'server/banking_system.lua',   -- Produtos bancários
+  'server/money_laundering.lua', -- Lavagem oficial
   'server/labor_market.lua',     -- Salário mínimo, desemprego
 
   -- Admin & Events

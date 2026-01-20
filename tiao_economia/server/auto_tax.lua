@@ -46,6 +46,71 @@ local function applyAssetMultiplier(baseTax, count, multiplierCfg)
   return math.floor(baseTax * factor)
 end
 
+local function parseDateTime(value)
+  if type(value) == 'number' then return value end
+  if type(value) ~= 'string' then return nil end
+  local year, month, day, hour, min, sec = value:match('(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)')
+  if year then
+    return os.time({
+      year = tonumber(year),
+      month = tonumber(month),
+      day = tonumber(day),
+      hour = tonumber(hour),
+      min = tonumber(min),
+      sec = tonumber(sec),
+    })
+  end
+  return nil
+end
+
+local vehicleIdleColumn = nil
+local function getVehicleIdleColumn()
+  if vehicleIdleColumn ~= nil then return vehicleIdleColumn or nil end
+  if not MySQL then
+    vehicleIdleColumn = false
+    return nil
+  end
+
+  local ok, cols = pcall(function()
+    return MySQL.query.await('SHOW COLUMNS FROM player_vehicles')
+  end)
+
+  if not ok or not cols then
+    vehicleIdleColumn = false
+    return nil
+  end
+
+  local names = {}
+  for _, c in ipairs(cols) do
+    if c and c.Field then
+      names[c.Field] = true
+    end
+  end
+
+  local candidates = {
+    'last_parked',
+    'last_parked_at',
+    'last_garage',
+    'last_garage_at',
+    'last_driven',
+    'last_drive',
+    'last_used',
+    'last_used_at',
+    'last_updated',
+    'updated_at',
+  }
+
+  for _, name in ipairs(candidates) do
+    if names[name] then
+      vehicleIdleColumn = name
+      return name
+    end
+  end
+
+  vehicleIdleColumn = false
+  return nil
+end
+
 --============================================================
 -- HOOKS PARA SHOPS (qb-shops, ox_inventory, etc)
 --============================================================
@@ -200,28 +265,53 @@ if cfg.Garages and cfg.Garages.AutoIPVA then
       -- Busca veículos que precisam renovar IPVA
       -- Requer tabela player_vehicles com colunas: citizenid, vehicle, plate, price, last_ipva_at
       
-      local vehicles = MySQL.query.await([[
-        SELECT citizenid, vehicle, plate, 
-               COALESCE(price, 50000) as price
+      local idleCol = getVehicleIdleColumn()
+      local selectCols = 'citizenid, vehicle, plate, COALESCE(price, 50000) as price'
+      if idleCol then
+        selectCols = ('%s, `%s` as last_idle_at'):format(selectCols, idleCol)
+      end
+
+      local vehicles = MySQL.query.await(([[
+        SELECT %s
         FROM player_vehicles
         WHERE (last_ipva_at IS NULL OR last_ipva_at < DATE_SUB(NOW(), INTERVAL 365 DAY))
         LIMIT 100
-      ]])
+      ]]):format(selectCols))
       
       if vehicles then
         for _, v in ipairs(vehicles) do
           local ipva = calculateIPVA(U.toInt(v.price, 50000))
           local vehicleCount = countAssets('player_vehicles', v.citizenid)
           ipva = applyAssetMultiplier(ipva, vehicleCount, Config.AssetTax and Config.AssetTax.VehicleMultiplier)
+
+          local idleApplied = false
+          local idleDaysCount = nil
+
+          if idleCol and Config.AssetTax then
+            local idleDaysLimit = U.toInt(Config.AssetTax.IdleVehicleDays, 0)
+            local idleMult = U.toNumber(Config.AssetTax.IdleVehicleMultiplier, 1.0)
+            local lastIdle = parseDateTime(v.last_idle_at)
+            if idleDaysLimit > 0 and idleMult > 1.0 and lastIdle then
+              local daysIdle = math.floor((os.time() - lastIdle) / 86400)
+              if daysIdle >= idleDaysLimit then
+                ipva = math.floor(ipva * idleMult)
+                idleApplied = true
+                idleDaysCount = daysIdle
+              end
+            end
+          end
           
           if ipva > 0 and SE.Debts and SE.Debts.Upsert then
             SE.Debts.Upsert(v.citizenid, ipva, 'IPVA - ' .. (v.vehicle or 'Veículo'),
               os.time() + (30 * 24 * 60 * 60), {
-              vehicle_plate = v.plate,
-              base_price = v.price,
-              ipva_rate = 1.5,
-              annual = true
-            })
+                vehicle_plate = v.plate,
+                base_price = v.price,
+                ipva_rate = 1.5,
+                annual = true,
+                idle_check = idleCol and true or false,
+                idle_applied = idleApplied,
+                idle_days = idleDaysCount,
+              })
             
             -- Atualiza última cobrança
             MySQL.update.await([[

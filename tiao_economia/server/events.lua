@@ -332,7 +332,7 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
 
       local credited = true
       if SE.Integrations and SE.Integrations.AddMoney then
-        local okAdd = SE.Integrations.AddMoney(src, amount, 'bank')
+        local okAdd = SE.Integrations.AddMoney(src, amount, 'bank', reason or 'admin_withdraw')
         credited = (okAdd == true)
       end
 

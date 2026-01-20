@@ -126,6 +126,20 @@ Config.AssetTax = {
   VehicleMultiplier = 0.5, -- +50% por veículo extra
   PropertyMultiplier = 0.5, -- +50% por propriedade extra
   MaxMultiplier = 6.0,
+  IdleVehicleDays = 30,
+  IdleVehicleMultiplier = 3.0, -- IPVA triplicado para veículos ociosos
+}
+
+-- ============================================================
+-- LAVAGEM OFICIAL
+-- ============================================================
+Config.MoneyLaundering = {
+  Enabled = true,
+  FeePercent = 0.35, -- 35% de taxa
+  MinAmount = 10000,
+  MaxAmount = 2000000,
+  TreasuryShare = 1.0,
+  Reason = 'lavagem_oficial',
 }
 
 -- Renda Básica Universal (UBI)
@@ -227,9 +241,36 @@ Config.Inflation = {
   MaxRate = 2.00,
   
   -- Auto-ajuste (futuro: baseado em economia da cidade)
-  AutoAdjust = false,
-  AdjustIntervalHours = 24,
+  AutoAdjust = true,
+  AdjustIntervalHours = 6,
   TargetRange = { min = 0.95, max = 1.05 },
+  VelocityHigh = 1.20,
+  VelocityLow = 0.60,
+  InflationStep = 0.05,
+  TaxStep = 0.05,
+}
+
+-- ============================================================
+-- SEGURANÇA ECONÔMICA (Economy Guard)
+-- ============================================================
+Config.Security = {
+  Enabled = true,
+  SuspiciousThreshold = 1000000, -- 1 milhão
+  MaxGenericAmount = 100000,
+  MaxGainPerMinute = 10000000,
+  EnforceReasonCatalog = false,
+  AllowedReasons = {}, -- quando vazio, não bloqueia por catálogo
+  GenericReasons = { 'script', 'unknown', 'space_economy', 'reward' },
+
+  QuarantineEnabled = true,
+
+  Emergency = {
+    Enabled = true,
+    CirculationSpikePercent = 0.05, -- 5% por hora
+    WindowSeconds = 3600,
+    CheckIntervalSeconds = 300,
+    HighValueBlock = 250000, -- bloqueia compras altas em emergência
+  }
 }
 
 -- ============================================================

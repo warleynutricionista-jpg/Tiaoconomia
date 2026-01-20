@@ -406,6 +406,13 @@ function SE.Integrations.RemoveMoney(src, amount, account, reason)
   account = account or 'bank'
   reason = safeStr(reason, 'space_economy')
 
+  if SE.SecurityGuard and SE.SecurityGuard.ValidateDebit then
+    local okGuard, errGuard = SE.SecurityGuard.ValidateDebit(src, amount, account, reason)
+    if not okGuard then
+      return false, errGuard or 'blocked_by_guard'
+    end
+  end
+
   -- saldo (evita remover e dar true por bug)
   local bal = SE.Integrations.GetBalance(src, account)
   if bal < amount then
@@ -466,6 +473,13 @@ function SE.Integrations.AddMoney(src, amount, account, reason)
 
   account = account or 'bank'
   reason = safeStr(reason, 'space_economy')
+
+  if SE.SecurityGuard and SE.SecurityGuard.ValidateCredit then
+    local okGuard, errGuard = SE.SecurityGuard.ValidateCredit(src, amount, account, reason)
+    if not okGuard then
+      return false, errGuard or 'blocked_by_guard'
+    end
+  end
 
   local r = _bridgeAdd(src, account, amount, reason)
   if r == true then

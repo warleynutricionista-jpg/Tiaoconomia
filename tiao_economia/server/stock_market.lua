@@ -416,7 +416,7 @@ function SM.SellStock(src, ticker, quantity)
   ]], { citizenid, ticker })
 
   -- Dar dinheiro ao player
-  SE.Integrations.AddMoney(src, 'bank', netAmount, 'Venda de ações ' .. ticker)
+  SE.Integrations.AddMoney(src, netAmount, 'bank', 'venda_acoes_' .. ticker)
 
   -- Atualizar volume
   company.volume = company.volume + quantity

@@ -11,6 +11,29 @@ local U = SE.Util
 
 local IS_SERVER = IsDuplicityVersion() == true
 
+local BalanceCache = {
+  ttl = 3,
+  data = {},
+}
+
+local function setBalanceCache(src, account, value)
+  if not IS_SERVER then return end
+  if not src or not account then return end
+  BalanceCache.data[src] = BalanceCache.data[src] or {}
+  BalanceCache.data[src][account] = { value = value, ts = os.time() }
+end
+
+local function getBalanceCache(src, account)
+  if not IS_SERVER then return nil end
+  local entry = BalanceCache.data[src] and BalanceCache.data[src][account]
+  if not entry then return nil end
+  if (os.time() - entry.ts) > BalanceCache.ttl then
+    BalanceCache.data[src][account] = nil
+    return nil
+  end
+  return entry.value
+end
+
 -- Fallbacks caso utils ainda não tenha
 local function safeStr(v, fallback)
   if U and U.safeStr then return U.safeStr(v, fallback) end
@@ -265,12 +288,22 @@ function B.RemoveMoney(src, account, amount, reason)
 
   -- QBX
   if p.RemoveMoney then
-    return tryCall(function() return p:RemoveMoney(account, amount, reason) end)
+    local ok = tryCall(function() return p:RemoveMoney(account, amount, reason) end)
+    if ok then
+      local cached = getBalanceCache(src, account)
+      if cached then setBalanceCache(src, account, cached - amount) end
+    end
+    return ok
   end
 
   -- QBCore
   if p.Functions and p.Functions.RemoveMoney then
-    return tryCall(function() return p.Functions.RemoveMoney(account, amount, reason) end)
+    local ok = tryCall(function() return p.Functions.RemoveMoney(account, amount, reason) end)
+    if ok then
+      local cached = getBalanceCache(src, account)
+      if cached then setBalanceCache(src, account, cached - amount) end
+    end
+    return ok
   end
 
   return false
@@ -287,11 +320,21 @@ function B.AddMoney(src, account, amount, reason)
   reason = reason or 'space_economy'
 
   if p.AddMoney then
-    return tryCall(function() return p:AddMoney(account, amount, reason) end)
+    local ok = tryCall(function() return p:AddMoney(account, amount, reason) end)
+    if ok then
+      local cached = getBalanceCache(src, account)
+      if cached then setBalanceCache(src, account, cached + amount) end
+    end
+    return ok
   end
 
   if p.Functions and p.Functions.AddMoney then
-    return tryCall(function() return p.Functions.AddMoney(account, amount, reason) end)
+    local ok = tryCall(function() return p.Functions.AddMoney(account, amount, reason) end)
+    if ok then
+      local cached = getBalanceCache(src, account)
+      if cached then setBalanceCache(src, account, cached + amount) end
+    end
+    return ok
   end
 
   return false
@@ -306,11 +349,16 @@ function B.AddBankMoney(src, amount, reason)
 end
 
 function B.GetBalance(src, account)
+  local cached = getBalanceCache(src, account or 'bank')
+  if cached ~= nil then return toInt(cached, 0) end
+
   local pd = B.GetPlayerData(src)
   local m = pd and pd.money or nil
   if not m then return 0 end
   account = account or 'bank'
-  return toInt(m[account] or 0, 0)
+  local value = toInt(m[account] or 0, 0)
+  setBalanceCache(src, account, value)
+  return value
 end
 
 function B.GetBankBalance(src)

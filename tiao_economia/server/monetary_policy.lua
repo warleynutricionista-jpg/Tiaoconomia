@@ -85,6 +85,14 @@ local Config = {
   },
 }
 
+local function ensurePolicySettings()
+  if not SE.State then return nil end
+  SE.State.settings = type(SE.State.settings) == 'table' and SE.State.settings or {}
+  SE.State.settings.monetaryPolicy = type(SE.State.settings.monetaryPolicy) == 'table'
+    and SE.State.settings.monetaryPolicy or {}
+  return SE.State.settings.monetaryPolicy
+end
+
 --============================================================
 -- Calcular Inflação por Massa Monetária
 --============================================================
@@ -181,6 +189,86 @@ function MP.CalculateInflation()
   ))
 
   return monthlyInflation
+end
+
+--============================================================
+-- Revisão Autônoma (Velocidade + PIB + Tesouro)
+--============================================================
+function MP.ReviewAutonomy()
+  if not (Config and Config.Inflation and Config.Inflation.AutoAdjust) then return end
+
+  if not (SE.EconomyMonitor and SE.EconomyMonitor.GetReport) then return end
+
+  local report = SE.EconomyMonitor.GetReport()
+  local velocity = (report.indicators and report.indicators.velocity) or 0
+  local pib = (report.pib and report.pib.total) or 0
+  local vault = (SE.Treasury and SE.Treasury.GetBalance and SE.Treasury.GetBalance()) or
+    (SE.State and SE.State.vaultBalance) or 0
+
+  local settings = ensurePolicySettings() or {}
+  local taxStep = Config.Inflation.TaxStep or 0.05
+  local inflStep = Config.Inflation.InflationStep or 0.05
+
+  local curInflation = (SE.Server and SE.Server.GetInflationRate and SE.Server.GetInflationRate())
+    or (SE.State and SE.State.inflationRate) or 1.0
+  local curTax = (SE.Server and SE.Server.GetTaxMultiplier and SE.Server.GetTaxMultiplier())
+    or (SE.State and SE.State.taxMultiplier) or 1.0
+
+  -- Velocidade do dinheiro: economia aquecida
+  if velocity >= (Config.Inflation.VelocityHigh or 1.2) then
+    curInflation = curInflation + inflStep
+    curTax = curTax + taxStep
+    U.dbg('[Monetary Policy] Autonomia: economia aquecida, ajustando inflação/impostos')
+
+  elseif velocity <= (Config.Inflation.VelocityLow or 0.6) then
+    curInflation = curInflation - inflStep
+    curTax = curTax - taxStep
+    U.dbg('[Monetary Policy] Autonomia: economia fria, reduzindo inflação/impostos')
+  end
+
+  -- Cenário de superávit
+  if Config.Treasury and vault > (Config.Treasury.MaxReserves or 0) then
+    curTax = math.min(curTax, 0.8)
+    U.dbg('[Monetary Policy] Autonomia: superávit detectado, impostos reduzidos')
+  end
+
+  -- PIB em queda: estímulo
+  local lastPib = tonumber(settings.lastPIB or 0) or 0
+  if lastPib > 0 and pib < lastPib then
+    curInflation = curInflation - inflStep
+    curTax = curTax - taxStep
+    U.dbg('[Monetary Policy] Autonomia: PIB em queda, estímulo aplicado')
+  end
+
+  -- Laffer básico: receita semanal
+  if SE.Metrics and SE.Metrics.GetWeeklyRevenue then
+    local weekly = SE.Metrics.GetWeeklyRevenue() or {}
+    local totalWeekly = 0
+    for _, row in ipairs(weekly) do
+      totalWeekly = totalWeekly + U.toInt(row.total, 0)
+    end
+
+    local lastWeekly = tonumber(settings.lastWeeklyRevenue or 0) or 0
+    if lastWeekly > 0 and totalWeekly < lastWeekly then
+      curTax = curTax - taxStep
+      U.dbg('[Monetary Policy] Autonomia: receita caiu, impostos suavizados')
+    end
+
+    settings.lastWeeklyRevenue = totalWeekly
+  end
+
+  settings.lastPIB = pib
+  if SE.Server and SE.Server.MarkDirty then
+    SE.Server.MarkDirty()
+  end
+
+  if SE.Server and SE.Server.SetInflationRate then
+    SE.Server.SetInflationRate(curInflation)
+  end
+
+  if SE.Server and SE.Server.SetTaxMultiplier then
+    SE.Server.SetTaxMultiplier(curTax)
+  end
 end
 
 --============================================================
@@ -508,6 +596,19 @@ CreateThread(function()
     MP.COPOMMeeting()
 
     PolicyState.lastUpdate = os.time()
+  end
+end)
+
+--============================================================
+-- Thread de Autonomia Econômica
+--============================================================
+CreateThread(function()
+  Wait(20000)
+
+  while true do
+    local interval = (Config.Inflation and Config.Inflation.AdjustIntervalHours or 6)
+    MP.ReviewAutonomy()
+    Wait(interval * 60 * 60 * 1000)
   end
 end)
 

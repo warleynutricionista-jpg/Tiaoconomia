@@ -220,7 +220,7 @@ local function addMoney(src, amount)
   amount = _toInt(amount, 0)
   if amount <= 0 or not src or src <= 0 then return false end
   if SE.Integrations and type(SE.Integrations.AddMoney) == 'function' then
-    return SE.Integrations.AddMoney(src, amount, 'bank') == true
+    return SE.Integrations.AddMoney(src, amount, 'bank', 'credito_emprestimo') == true
   end
   return false
 end
