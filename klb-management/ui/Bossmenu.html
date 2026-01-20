@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Painel Adminitrativo</title>
+  <style>
+    :root{
+      --bg:#0c1220;
+      --panel:rgba(18,26,44,.55);
+      --panel-2:rgba(12,20,36,.55);
+      --text:#edf2fb;
+      --muted:#a5b0c9;
+      --accent:#7B5CFF;
+      --accent-2:#00E6B8;
+      --border:rgba(255,255,255,.14);
+      --border-strong:rgba(255,255,255,.18);
+      --inner:rgba(255,255,255,.06);
+      --shadow: 0 10px 28px rgba(0,0,0,.28);
+      --radius:16px;
+      --blur:10px;
+      --ui-scale:1;
+      --tablet-w:min(1120px, 92vw);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: transparent !important;
+      color:var(--text);
+      letter-spacing:.2px;
+      min-height:100vh; min-height:100dvh;
+    }
+
+    .shell{ position:fixed; inset:0; display:grid; place-items:center; padding:clamp(16px,4vh,56px); }
+    .tablet{
+      width:var(--tablet-w);
+      background:
+        radial-gradient(60% 80% at 50% -10%, rgba(123,92,255,.18), rgba(0,0,0,0) 60%),
+        radial-gradient(60% 80% at 100% 0%, rgba(0,230,184,.18), rgba(0,0,0,0) 60%),
+        linear-gradient(180deg, rgba(14,26,39,.95), rgba(7,14,22,.98));
+      border-radius:20px;
+      padding:20px;
+      transform:scale(var(--ui-scale));
+      transform-origin:center;
+      display:none;
+      border:1px solid var(--border);
+      box-shadow:0 30px 60px rgba(0,0,0,.45);
+      backdrop-filter: blur(var(--blur));
+    }
+
+    .app{ display:grid; grid-template-columns:240px 1fr; min-height:620px; }
+    .sidebar{
+      padding:18px; border-right:1px solid var(--border);
+      background: linear-gradient(180deg,var(--panel),var(--panel-2));
+      position:relative;
+      border-radius:16px 0 0 16px;
+    }
+    .brand{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .brand-logo{
+      width:38px; height:38px; border-radius:12px;
+      background: radial-gradient(circle at 30% 30%, #8a74ff, #4a33c9);
+      box-shadow: inset 0 0 18px rgba(255,255,255,.08);
+      display:grid; place-items:center; color:white; font-weight:800; font-size:18px;
+      border:1px solid var(--border-strong);
+      letter-spacing:.5px;
+    }
+    .brand h1{ font-size:15px; margin:0; letter-spacing:.6px; }
+    .sub{ color:var(--muted); font-size:11px; margin-top:2px; }
+
+    .nav{ margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+    .nav button{
+      all:unset; padding:11px 14px; border-radius:999px; cursor:pointer; color:var(--text);
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      font-size:13px; font-weight:600;
+      transition: .2s ease;
+    }
+    .nav button.active, .nav button:hover{
+      border-color: var(--border-strong);
+      box-shadow: 0 10px 22px rgba(123,92,255,.16);
+      background: linear-gradient(90deg, rgba(123,92,255,.20), rgba(0,230,184,.18));
+    }
+    .credits{ position:absolute; bottom:12px; left:18px; right:18px; color:var(--muted); font-size:11px; }
+
+    .main{ padding:22px; overflow:auto; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.015)); border-radius:0 16px 16px 0; }
+    .container{ max-width:1040px; margin:0 auto; }
+    .header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+
+    .pill{
+      padding:6px 12px; border-radius:999px; border:1px solid var(--border-strong); color:var(--muted); font-size:11px;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    .btn{
+      border:1px solid var(--border);
+      padding:10px 14px; border-radius:999px; cursor:pointer;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      color:var(--text); font-weight:700; font-size:13px; letter-spacing:.2px;
+      user-select:none; transition:.15s ease; transform:translateZ(0);
+    }
+    .btn:hover{ transform:translateY(-1px); }
+    .btn[disabled]{ opacity:.6; pointer-events:none; }
+    .btn.primary, .btn.alt{
+      background: linear-gradient(90deg, var(--accent-2), var(--accent));
+      border-color: transparent;
+      box-shadow: 0 10px 24px rgba(123,92,255,.28);
+    }
+    .btn.alt{ color:#073a2f; }
+    .btn.ghost:hover{ border-color: var(--border-strong); }
+
+    .grid{ display:grid; grid-template-columns: repeat(12,1fr); gap:14px; }
+    .card{
+      grid-column: span 12;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(var(--blur));
+    }
+    @media (min-width: 960px){
+      .card.col-6{ grid-column: span 6; }
+      .card.col-8{ grid-column: span 8; }
+      .card.col-4{ grid-column: span 4; }
+    }
+    .card h3{ margin:0 0 10px; font-size:15px; letter-spacing:.4px; }
+    .muted{ color:var(--muted); font-size:12px; }
+
+    table{ width:100%; border-collapse: collapse; }
+    th, td{ text-align:left; padding:14px 10px; border-bottom:1px solid var(--border); font-size:12px; vertical-align:middle; }
+    th{ color:var(--muted); font-weight:600; }
+    tbody tr:hover td{ background:rgba(255,255,255,.02); }
+
+    select{
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      position:relative;
+      background:linear-gradient(180deg, rgba(123,92,255,.12), rgba(12,26,46,.78));
+      border:1px solid rgba(123,92,255,.28);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 40px 10px 14px;
+      outline:none;
+      font-size:12px;
+      font-weight:600;
+      letter-spacing:.25px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 10px 28px rgba(8,12,24,.45);
+      transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23C9D2F5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat:no-repeat; background-position:right 12px center; background-size:16px;
+    }
+    select::-ms-expand{ display:none; }
+    select:hover{
+      border-color:rgba(123,92,255,.48);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 14px 34px rgba(123,92,255,.32);
+      transform:translateY(-1px);
+    }
+    select:focus{
+      border-color:rgba(0,230,184,.55);
+      box-shadow:0 0 0 2px rgba(0,230,184,.28), 0 18px 38px rgba(0,230,184,.28);
+    }
+    select:disabled{
+      opacity:.55; cursor:not-allowed;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(12,26,46,.65));
+      border-color:var(--border);
+    }
+    select option{ background-color:rgba(9,15,28,.94); color:var(--text); font-weight:500; }
+    select optgroup{ color:var(--muted); background-color:rgba(9,15,28,.94); }
+
+    .status{ padding:6px 12px; border-radius:999px; font-size:11px; border:1px solid var(--border); }
+    .ok{ background:rgba(32,211,138,.12); color:#b9f5df; border-color: rgba(32,211,138,.38); }
+    .bad{ background:rgba(227,79,111,.14); color:#ffd4dc; border-color:rgba(227,79,111,.42); }
+
+    .section-title{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:10px; flex-wrap:wrap; }
+    .search{ display:flex; gap:8px; }
+    .search input{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:10px 12px; color:var(--text);
+      min-width:220px; font-size:12px;
+    }
+    .tag{ font-size:11px; color:var(--muted); padding:5px 10px; border:1px solid var(--border-strong); border-radius:999px; background:rgba(255,255,255,.03); }
+
+    .row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+    .row input, .row select{
+      flex:1; padding:10px 12px; border-radius:999px; border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)); color:var(--text);
+      font-size:12px; min-width:220px;
+    }
+
+    .modal-backdrop{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(7,12,24,.68); backdrop-filter: blur(calc(var(--blur) * .6));
+      padding:24px; z-index:50;
+    }
+    .modal-backdrop.active{ display:flex; }
+    .modal-card{
+      width:min(460px, 94vw);
+      border-radius:18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+      border:1px solid var(--border-strong);
+      box-shadow: var(--shadow);
+      padding:18px;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .modal-card h3{ margin:0; font-size:16px; letter-spacing:.4px; }
+    .modal-card .form-group{ display:flex; flex-direction:column; gap:6px; }
+    .modal-card label{ font-size:12px; color:var(--muted); }
+    .modal-card input, .modal-card textarea{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px; color:var(--text); font-size:13px; resize:vertical;
+    }
+    .modal-card textarea{ min-height:72px; }
+    .modal-actions{ display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+
+    .hidden{ display:none !important; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="tablet" aria-live="polite">
+      <div class="app">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="brand-logo">REP</div>
+            <div>
+              <h1 data-i18n="title">Painel Gestão</h1>
+              <div class="sub" data-i18n="subtitle">Funcionários • Finanças</div>
+            </div>
+          </div>
+          <div class="nav">
+            <button data-tab="economy" data-i18n="nav_economy">💳 Banco</button>
+            <button class="active" data-tab="members" data-i18n="nav_employees">👥 Funcionários</button>
+            <button data-tab="stash" data-i18n="nav_stash">📦 Cofre</button>
+            <button data-tab="transactions" data-i18n="nav_transactions">📑 Transações</button>
+          </div>
+          <div class="credits">Tião Scripts</div>
+        </aside>
+
+        <main class="main">
+          <div class="container">
+            <div class="header">
+              <div class="pill"><span data-i18n="job_prefix">Emprego</span>: <b id="gangName">EMPRESA</b></div>
+              <div class="actions">
+                <button class="btn primary" id="btnDeposit" data-i18n="btn_deposit">Depositar</button>
+                <button class="btn alt" id="btnWithdraw" data-i18n="btn_withdraw">Sacar</button>
+                <button class="btn ghost" id="btnExit" data-i18n="btn_exit">Sair</button>
+              </div>
+            </div>
+
+            <section id="economy" class="tab hidden" aria-labelledby="economy-title">
+              <div class="grid">
+                <div class="card col-12">
+                  <h3 id="economy-title" data-i18n="company_balance">Saldo da Empresa</h3>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div id="gBalance" style="font-size:24px; font-weight:800;">$ 0</div>
+                    <span class="tag" id="statMembers" data-i18n="employees_count" data-count="0">0 funcionários</span>
+                  </div>
+                </div>
+
+                <div class="card col-12">
+                  <div class="section-title">
+                    <h3 data-i18n="recent_transfers">Transferências Recentes</h3>
+                    <div class="search">
+                      <input id="txSearch" placeholder="Buscar por jogador / ID / ref…" aria-label="Buscar transações"/>
+                    </div>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th data-i18n="th_ref">Ref</th>
+                        <th data-i18n="th_type">Tipo</th>
+                        <th data-i18n="th_by">Por</th>
+                        <th data-i18n="th_amount">Valor</th>
+                        <th data-i18n="th_status">Status</th>
+                        <th data-i18n="th_time">Hora</th>
+                      </tr>
+                    </thead>
+                    <tbody id="txBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            <section id="members" class="tab" aria-labelledby="members-title">
+              <div class="card">
+                <div class="section-title">
+                  <h3 id="members-title" data-i18n="employees">Funcionários</h3>
+                  <div class="search">
+                    <input id="mSearch" placeholder="Buscar por nome / ID / cargo…" aria-label="Buscar funcionários"/>
+                  </div>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="th_playerid">ID</th>
+                      <th data-i18n="th_name">Nome</th>
+                      <th data-i18n="th_grade">Cargo</th>
+                      <th data-i18n="th_status">Status</th>
+                      <th style="text-align:right" data-i18n="th_actions">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="memBody"></tbody>
+                </table>
+                <div class="row">
+                  <input id="invId" placeholder="ID do Servidor (ex.: 42)" aria-label="ID do Servidor"/>
+                  <select id="invRank" aria-label="Cargo para contratar">
+                    <option value="" data-i18n="default_grade">Cargo padrão</option>
+                  </select>
+                  <button class="btn primary" id="btnInvite" data-i18n="btn_hire">Contratar</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="stash" class="tab hidden" aria-labelledby="stash-title">
+              <div class="card">
+                <h3 id="stash-title" data-i18n="company_stash">Cofre da Empresa</h3>
+                <div class="row">
+                  <button class="btn primary" id="btnOpenStash" data-i18n="btn_open_stash">Abrir Cofre</button>
+                  <button class="btn ghost" id="btnManageAssets" data-i18n="btn_manage_assets">Gerenciar Itens</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="transactions" class="tab hidden" aria-labelledby="transactions-title">
+              <div class="card">
+                <div class="section-title">
+                  <h3 id="transactions-title" data-i18n="all_transactions">Todas as Transações</h3>
+                  <div class="actions">
+                    <button class="btn primary" id="btnDep3" data-i18n="btn_deposit">Depositar</button>
+                    <button class="btn alt" id="btnWit3" data-i18n="btn_withdraw">Sacar</button>
+                  </div>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="th_ref">Ref</th>
+                      <th data-i18n="th_type">Tipo</th>
+                      <th data-i18n="th_by">Por</th>
+                      <th data-i18n="th_amount">Valor</th>
+                      <th data-i18n="th_status">Status</th>
+                      <th data-i18n="th_time">Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody id="txBody2"></tbody>
+                </table>
+              </div>
+            </section>
+
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Transferência -->
+  <div id="modalTransfer" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTransferTitle">
+    <div class="modal-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <h3 id="modalTransferTitle">Transferir Fundos</h3>
+        <button class="btn ghost" id="transferCancelTop" data-i18n="btn_close">Fechar</button>
+      </div>
+      <div class="form-group">
+        <label for="transferAmount" data-i18n="amount">Valor</label>
+        <input id="transferAmount" type="number" min="1" step="1" placeholder="500" />
+      </div>
+      <div class="form-group">
+        <label for="transferTarget" data-i18n="player_id_opt">ID do Jogador <span class="muted">(opcional)</span></label>
+        <input id="transferTarget" placeholder="ID do Servidor (opcional)" />
+      </div>
+      <div class="form-group">
+        <label for="transferNote" data-i18n="note_opt">Observação <span class="muted">(opcional)</span></label>
+        <textarea id="transferNote" placeholder="Motivo ou referência"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="transferCancel" data-i18n="btn_cancel">Cancelar</button>
+        <button class="btn primary" id="transferSubmit" data-i18n="btn_confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const $  = (s)=> document.querySelector(s);
+  const $$ = (s)=> [...document.querySelectorAll(s)];
+
+  // ===== i18n (PT-BR padrão com fallback para labels enviados pela NUI) =====
+  const PT = {
+    title:'Painel Gestão', subtitle:'Funcionários • Finanças',
+    nav_economy:'💳 Banco', nav_employees:'👥 Funcionários', nav_stash:'📦 Cofre', nav_transactions:'📑 Transações',
+    job_prefix:'Emprego', btn_deposit:'Depositar', btn_withdraw:'Sacar', btn_exit:'Sair',
+    company_balance:'Saldo da Empresa', employees_count:(n)=>`${n} funcionário${n==1?'':'s'}`,
+    recent_transfers:'Transferências Recentes',
+    th_ref:'Ref', th_type:'Tipo', th_by:'Por', th_amount:'Valor', th_status:'Status', th_time:'Hora', th_actions:'Ações',
+    employees:'Funcionários', default_grade:'Cargo padrão', btn_hire:'Contratar',
+    company_stash:'Cofre da Empresa', btn_open_stash:'Abrir Cofre', btn_manage_assets:'Gerenciar Itens',
+    all_transactions:'Todas as Transações', btn_close:'Fechar',
+    amount:'Valor', player_id_opt:'ID do Jogador (opcional)', note_opt:'Observação (opcional)',
+    btn_cancel:'Cancelar', btn_confirm:'Confirmar',
+    online:'Online', offline:'Offline', you:'Você',
+    toast_sync_ok:'Sincronizado', toast_sync_fail:'Falha ao sincronizar',
+    toast_rank_ok:'Cargo atualizado', toast_invited:(id)=>`Convidado #${id}`, toast_fire_ok:'Funcionário demitido',
+    toast_transfer_ok_dep:'Depósito realizado', toast_transfer_ok_wit:'Saque realizado', toast_transfer_fail:'Falha na transferência',
+    invalid_id:'ID inválido', enter_amount:'Informe um valor válido'
+  };
+  let L = {...PT};
+
+  function applyLabels(){
+    $$('[data-i18n]').forEach(el=>{
+      const key = el.dataset.i18n;
+      const v = L[key];
+      if(typeof v === 'function'){
+        if(key === 'employees_count'){
+          const n = Number(el.dataset.count || 0);
+          el.textContent = v(n);
+        } else {
+          el.textContent = v();
+        }
+      } else if(typeof v === 'string'){
+        el.textContent = v;
+      }
+    });
+  }
+
+  function toast(message, type='primary'){
+    if(!message) return;
+    nui(prefix+':notify', { message, type });
+  }
+
+  // ===== Tabs =====
+  const tabs = $$('.nav button');
+  tabs.forEach(btn=> btn.addEventListener('click', ()=> switchTab(btn.dataset.tab)));
+  function switchTab(id){
+    tabs.forEach(b=> b.classList.toggle('active', b.dataset.tab === id));
+    $$('.tab').forEach(s=> s.classList.add('hidden'));
+    const target = document.getElementById(id);
+    if(target) target.classList.remove('hidden');
+  }
+
+  // ===== NUI helpers =====
+  const resource = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'KLB-Management';
+  const prefix = 'boss';
+
+  async function nui(name, data={}){
+    const resp = await fetch(`https://${resource}/${name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+      body: JSON.stringify(data)
+    });
+    try { return await resp.json(); } catch(e){ return null; }
+  }
+
+  // ===== State =====
+  let gradesGlobal = [];
+  let balance = 0;
+  let members = [];
+  let tx = [];
+  let transferMode = 'deposit';
+  let transferPending = false;
+
+  function formatTime(value){
+    if(!value) return '';
+    if(typeof value === 'number'){
+      return new Date(value * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    }
+    const str = String(value);
+    if(str.includes('T')) return (str.split('T')[1]||'').slice(0,5);
+    if(str.includes(' ')){
+      const pieces = str.trim().split(' ');
+      for(let i=pieces.length-1;i>=0;i--){
+        if(pieces[i].includes(':')) return pieces[i].slice(0,5);
+      }
+    }
+    if(str.includes(':')) return str.slice(0,5);
+    return str;
+  }
+
+  function renderBalance(){
+    const el = $('#gBalance'); if(el) el.textContent = '$ ' + Number(balance||0).toLocaleString();
+    const sm = $('#statMembers'); if(sm){ sm.dataset.count = members.length; sm.textContent = PT.employees_count(members.length); }
+  }
+
+  function rowTx(r){
+    if(!r) return '';
+    const rawType = String(r.type || r.action || '').toLowerCase();
+    const isWithdraw = rawType === 'withdraw' || rawType === 'remove' || rawType === 'out';
+    const niceType = isWithdraw ? 'Saque' : 'Depósito';
+    const sign = isWithdraw ? '-' : '+';
+    const amount = Number(r.amount ?? r.value ?? 0) || 0;
+    const by = r.by || r.player || r.author || r.name || r.citizenid || r.source || 'Desconhecido';
+    const refValue = r.ref || r.reference || r.id || r.transactionId || '';
+    const ref = refValue ? (String(refValue).startsWith('#') ? String(refValue) : '#' + refValue) : '';
+    const status = r.status || 'Concluído';
+    const time = formatTime(r.time || r.timestamp || r.created_at || r.date || r.logged_at);
+    return `<tr><td>${ref}</td><td>${niceType}</td><td>${by}</td><td>${sign} $ ${amount.toLocaleString()}</td><td>${status}</td><td>${time}</td></tr>`;
+  }
+
+  function renderTx(){
+    const rows = tx.map(rowTx).join('');
+    const t1 = $('#txBody'); if(t1) t1.innerHTML = rows;
+    const t2 = $('#txBody2'); if(t2) t2.innerHTML = rows;
+  }
+
+  function renderMembers(){
+    const q = ($('#mSearch')?.value||'').toLowerCase();
+    const body = $('#memBody'); if(!body) return;
+    body.innerHTML = members
+      .filter(m=> (m.name||'').toLowerCase().includes(q) || String(m.empSource||m.id||'').toLowerCase().includes(q) || (m.grade?.name||m.gradeName||'').toLowerCase().includes(q))
+      .map(m=>{
+        const id = m.empSource || m.id || '';
+        const online = !!m.online;
+        const gradeLevel = m.grade ? m.grade.level : m.gradeLevel;
+        const isSelf = !!m.isSelf;
+        const currentLevel = Number(gradeLevel ?? 0);
+        const options = gradesGlobal.map(g=>{
+          const level = Number(g.level);
+          const selected = String(gradeLevel)===String(g.level) ? ' selected' : '';
+          const disabled = isSelf && level < currentLevel ? ' disabled' : '';
+          return `<option value="${g.level}"${selected}${disabled}>${g.name}</option>`;
+        }).join('');
+        const actions = isSelf
+          ? `<span class="muted">${L.you||PT.you}</span>`
+          : `<button class="btn ghost" onclick="promote('${id}')">Promover</button>
+             <button class="btn ghost" onclick="fireEmployee('${id}')">Demitir</button>`;
+        return `
+        <tr>
+          <td>#${String(id).toString().slice(0,6)}</td>
+          <td>${m.name || 'Desconhecido'}</td>
+          <td>
+            <select onchange="setRank('${id}', this.value)">
+              ${options}
+            </select>
+          </td>
+          <td><span class="status ${online?'ok':'bad'}">${online?(L.online||PT.online):(L.offline||PT.offline)}</span></td>
+          <td style="text-align:right;">${actions}</td>
+        </tr>`;
+      }).join('');
+  }
+
+  function renderInviteGrades(){
+    const select = $('#invRank'); if(!select) return;
+    const currentValue = select.value;
+    const options = [
+      `<option value="">${L.default_grade || PT.default_grade}</option>`,
+      ...gradesGlobal.map(g=>`<option value="${g.level}">${g.name}</option>`)
+    ];
+    select.innerHTML = options.join('');
+    if(currentValue && select.querySelector(`option[value="${currentValue}"]`)){
+      select.value = currentValue;
+    } else {
+      select.value = '';
+    }
+  }
+
+  async function refreshData(showToast=false){
+    const res = await nui(prefix+':sync');
+    if(!res){ toast(L.toast_sync_fail || PT.toast_sync_fail, 'error'); return; }
+    if(res.error){ toast(res.error, 'error'); return; }
+
+    if(res.labels && typeof res.labels === 'object') L = {...PT, ...res.labels};
+    applyLabels();
+
+    if(Array.isArray(res.members)) members = res.members;
+    if(Array.isArray(res.grades)) { gradesGlobal = res.grades; renderInviteGrades(); }
+
+    if(res.gang && res.gang.label){
+      const name = $('#gangName');
+      if(name) name.textContent = String(res.gang.label).toUpperCase();
+    }
+    if(res.account){
+      balance = Number(res.account.balance ?? balance) || 0;
+      if(Array.isArray(res.account.transactions)) tx = res.account.transactions;
+    }
+    renderMembers(); renderBalance(); renderTx();
+    if(showToast) toast(L.toast_sync_ok || PT.toast_sync_ok, 'success');
+  }
+
+  async function setRank(id, r){
+    await nui(prefix+':setrank', { cid: String(id), grade: Number(r) });
+    await refreshData();
+    toast(L.toast_rank_ok || PT.toast_rank_ok, 'success');
+  }
+  async function promote(id){
+    const m = members.find(x=> String(x.empSource||x.id)===String(id));
+    if(!m) return;
+    const order = gradesGlobal.map(g=> Number(g.level));
+    const cur = Number(m?.grade?.level ?? m?.gradeLevel ?? 0);
+    const idx = order.indexOf(cur);
+    const next = (idx > -1 && idx < order.length-1) ? order[idx+1] : null;
+    if(next != null){ await setRank(m.empSource||id, next); }
+  }
+  async function fireEmployee(id){
+    const res = await nui(prefix+':fire', { cid: String(id) });
+    if(res && res.error){ toast(res.error, 'error'); return; }
+    await refreshData(); toast(L.toast_fire_ok || PT.toast_fire_ok, 'success');
+  }
+  async function submitInvite(){
+    const input = $('#invId');
+    const rankSelect = $('#invRank');
+    const id = parseInt(input?.value||'0',10);
+    if(!id){ toast(L.invalid_id || PT.invalid_id, 'error'); return; }
+    const payload = { id };
+    if(rankSelect){
+      const gradeValue = String(rankSelect.value || '').trim();
+      if(gradeValue !== '') payload.grade = Number(gradeValue);
+    }
+    await nui(prefix+':invite', payload);
+    await refreshData();
+    toast((L.toast_invited||PT.toast_invited)(id), 'success');
+    if(input) input.value = '';
+    if(rankSelect) rankSelect.value = '';
+  }
+
+  function openTransfer(mode){
+    transferMode = mode === 'withdraw' ? 'withdraw' : 'deposit';
+    $('#modalTransferTitle').textContent = transferMode === 'withdraw' ? 'Sacar Fundos' : 'Depositar Fundos';
+    ['transferAmount','transferTarget','transferNote'].forEach(id=>{ const f = $('#'+id); if(f) f.value=''; });
+    $('#modalTransfer')?.classList.add('active');
+    const amountField = $('#transferAmount');
+    if(amountField){ amountField.focus(); amountField.select?.(); }
+  }
+  function closeTransfer(){ $('#modalTransfer')?.classList.remove('active'); }
+
+  async function submitTransfer(e){
+    if(e) e.preventDefault();
+    if(transferPending) return;
+    const amountInput = $('#transferAmount');
+    const amount = Math.floor(Number(amountInput?.value || 0));
+    if(!amount || amount <= 0){ toast(L.enter_amount || PT.enter_amount, 'error'); amountInput?.focus(); return; }
+    transferPending = true;
+    const submitBtn = $('#transferSubmit');
+    if(submitBtn){ submitBtn.setAttribute('disabled','disabled'); submitBtn.textContent='Processando…'; }
+    try{
+      const res = await nui(prefix+':transfer', {
+        type: transferMode,
+        amount,
+        target: $('#transferTarget')?.value?.trim() || '',
+        note: $('#transferNote')?.value?.trim() || ''
+      }) || {};
+      if(!res.ok){ toast(res.error || (L.toast_transfer_fail||PT.toast_transfer_fail), 'error'); return; }
+      if(res.account){
+        balance = Number(res.account.balance ?? balance) || 0;
+        if(Array.isArray(res.account.transactions)) tx = res.account.transactions;
+      }
+      renderBalance(); renderTx(); closeTransfer();
+      toast(transferMode === 'withdraw' ? (L.toast_transfer_ok_wit||PT.toast_transfer_ok_wit) : (L.toast_transfer_ok_dep||PT.toast_transfer_ok_dep), 'success');
+    } finally {
+      transferPending = false;
+      if(submitBtn){ submitBtn.removeAttribute('disabled'); submitBtn.textContent=L.btn_confirm||PT.btn_confirm; }
+    }
+    await refreshData();
+  }
+
+  // expor funções usadas nos botões em linha
+  window.setRank = setRank;
+  window.promote = promote;
+  window.fireEmployee = fireEmployee;
+
+  // Listeners
+  $('#transferSubmit')?.addEventListener('click', submitTransfer);
+  $('#transferCancel')?.addEventListener('click', (e)=>{ e.preventDefault(); closeTransfer(); });
+  $('#transferCancelTop')?.addEventListener('click', (e)=>{ e.preventDefault(); closeTransfer(); });
+
+  $('#btnDeposit')?.addEventListener('click', ()=> openTransfer('deposit'));
+  $('#btnWithdraw')?.addEventListener('click', ()=> openTransfer('withdraw'));
+  $('#btnExit')?.addEventListener('click', ()=> { nui(prefix+':close'); });
+  $('#btnInvite')?.addEventListener('click', submitInvite);
+
+  $('#btnDep3')?.addEventListener('click', ()=> openTransfer('deposit'));
+  $('#btnWit3')?.addEventListener('click', ()=> openTransfer('withdraw'));
+  // Abrir cofre e Gerenciar Itens: ambos acionam boss:stash (o client fecha a tablet e abre o cofre)
+  $('#btnOpenStash')?.addEventListener('click', ()=> { nui(prefix+':stash'); });
+  $('#btnManageAssets')?.addEventListener('click', ()=> { nui(prefix+':stash'); });
+
+  // NUI open/close
+  const tablet = $('.tablet');
+  window.addEventListener('message', (event)=>{
+    const data = event.data || {};
+    if(data.page !== 'boss') return;
+
+    if(data.action === 'open'){
+      tablet.style.display = 'block';
+      if(data.labels && typeof data.labels === 'object'){ L = {...PT, ...data.labels}; }
+      applyLabels();
+
+      if(data.gang?.label){
+        const gangName = $('#gangName');
+        if(gangName) gangName.textContent = String(data.gang.label).toUpperCase();
+      }
+      if(Array.isArray(data.grades)) { gradesGlobal = data.grades; renderInviteGrades(); }
+      refreshData();
+    } else if(data.action === 'members'){
+      if(Array.isArray(data.members)) {
+        members = data.members;
+        renderMembers(); renderBalance();
+      }
+    } else if(data.action === 'close'){
+      tablet.style.display = 'none';
+      closeTransfer();
+    }
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape') {
+      const modalOpen = $('#modalTransfer')?.classList.contains('active');
+      if(modalOpen){ closeTransfer(); return; }
+      nui(prefix+':close');
+    }
+  });
+
+  // Render inicial (útil para preview)
+  applyLabels(); renderBalance(); renderMembers(); renderTx(); renderInviteGrades();
+</script>
+</body>
+</html>

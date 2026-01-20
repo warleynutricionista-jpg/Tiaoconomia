@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KLB Management Router</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+    #klb-frame {
+      border: 0;
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: none;           /* visível só quando abrimos uma página */
+      background: transparent; /* evita flash branco */
+    }
+  </style>
+</head>
+<body>
+  <iframe
+    id="klb-frame"
+    src=""
+    allow="clipboard-read; clipboard-write; autoplay; fullscreen"
+    referrerpolicy="no-referrer"
+  ></iframe>
+
+  <script>
+    // ---- Estado do roteador ----
+    const frame = document.getElementById('klb-frame');
+    const ROUTES = {
+      boss: 'Bossmenu.html',
+      gang: 'gangmenu.html',
+    };
+
+    let currentPage = null;      // 'boss' | 'gang' | null
+    let frameNeedsLoad = false;  // true se acabamos de trocar o src
+    let queue = [];              // fila de mensagens para entregar após onload
+
+    function showFrame() {
+      if (frame.style.display !== 'block') frame.style.display = 'block';
+    }
+    function hideFrame() {
+      if (frame.style.display !== 'none') frame.style.display = 'none';
+    }
+
+    function ensureFrame(page) {
+      // page esperado: 'boss' ou 'gang'
+      if (!ROUTES[page]) return false;
+
+      const wantSrc = ROUTES[page];
+      const curSrc  = frame.getAttribute('src') || '';
+
+      // se já estamos na mesma página, apenas mostra e não troca o src
+      if (currentPage === page && curSrc === wantSrc) {
+        showFrame();
+        frameNeedsLoad = false;
+        return false;
+      }
+
+      // trocar de rota
+      currentPage = page;
+      frameNeedsLoad = true;
+      queue.length = 0; // descartamos mensagens antigas (nova tela vai sincronizar tudo)
+      frame.setAttribute('src', wantSrc);
+      showFrame();
+      return true;
+    }
+
+    function postToChild(data) {
+      // envia para dentro do iframe se possível; caso contrário, enfileira
+      if (!frameNeedsLoad && frame.contentWindow) {
+        try {
+          frame.contentWindow.postMessage(data, '*');
+        } catch (_) {
+          // se falhar por timing, enfileira
+          queue.push(data);
+        }
+      } else {
+        queue.push(data);
+      }
+    }
+
+    // ---- Listener NUI (mensagens vindas do client) ----
+    window.addEventListener('message', (event) => {
+      const data = event.data || {};
+
+      // fechar tudo
+      if (data.action === 'close') {
+        // também repassamos o close para a página atual (inclui page)
+        if (currentPage && frame.contentWindow) {
+          try {
+            frame.contentWindow.postMessage({ page: currentPage, action: 'close' }, '*');
+          } catch (_) {}
+        }
+        hideFrame();
+        currentPage = null;
+        frameNeedsLoad = false;
+        queue.length = 0;
+        return;
+      }
+
+      // mensagem com roteamento explícito (boss / gang)
+      if (data.page) {
+        ensureFrame(data.page);      // garante que a rota esteja carregada
+        // IMPORTANTE: não removemos data.page — o gangmenu filtra por ela
+        postToChild(data);
+        return;
+      }
+
+      // mensagem genérica (sem page) — encaminha para a tela atual
+      if (currentPage) {
+        postToChild(data);
+      }
+    });
+
+    // ---- Quando o iframe terminar de carregar, drenamos a fila ----
+    frame.addEventListener('load', () => {
+      frameNeedsLoad = false;
+      if (queue.length && frame.contentWindow) {
+        // descarrega em ordem
+        for (const msg of queue) {
+          try { frame.contentWindow.postMessage(msg, '*'); } catch (_) {}
+        }
+      }
+      queue.length = 0;
+    });
+
+    // Opcional: ESC para fechar via NUI (só esconde a UI; o client decide foco)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && currentPage) {
+        // avisa a página interna para fechar modais primeiro; se ela quiser,
+        // pode mandar outro 'close' de volta via client.
+        postToChild({ page: currentPage, action: 'close' });
+      }
+    });
+  </script>
+</body>
+</html>
