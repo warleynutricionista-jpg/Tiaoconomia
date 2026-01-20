@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Economy v5.0</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="overlay" aria-hidden="true">
+
+    <!-- =====================================================
+         ADMIN DASHBOARD - Complete Management System
+    ===================================================== -->
+    <section class="card admin-dashboard" id="admin-container">
+      <!-- Header -->
+      <header class="admin-header">
+        <div class="admin-title-wrapper">
+          <h1 class="admin-title">
+            <span class="card-title-icon">💼</span>
+            Sistema Econômico
+          </h1>
+          <p class="card-subtitle">Painel de Gestão Governamental</p>
+        </div>
+        <div class="admin-header-actions">
+          <span id="unsaved-badge" class="status-badge warning hidden">
+            <span>⚠</span>
+            <span>Não Salvo</span>
+          </span>
+          <button class="btn btn-icon btn-secondary" data-action="refresh-admin" title="Atualizar">🔄</button>
+          <button class="btn btn-icon btn-secondary" data-close title="Fechar">✖</button>
+        </div>
+      </header>
+
+      <!-- Body with Sidebar + Content -->
+      <div class="admin-body">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+          <nav class="nav-section">
+            <h2 class="nav-section-title">Principal</h2>
+            <button class="nav-item is-active" data-view="overview">
+              <span class="nav-icon">📊</span>
+              <span>Visão Geral</span>
+            </button>
+            <button class="nav-item" data-view="controls">
+              <span class="nav-icon">⚙️</span>
+              <span>Controles</span>
+            </button>
+          </nav>
+
+          <nav class="nav-section">
+            <h2 class="nav-section-title">Gestão</h2>
+            <button class="nav-item" data-view="taxes">
+              <span class="nav-icon">🧾</span>
+              <span>Tributos</span>
+            </button>
+            <button class="nav-item" data-view="debts">
+              <span class="nav-icon">💳</span>
+              <span>Dívidas</span>
+            </button>
+            <button class="nav-item" data-view="loans">
+              <span class="nav-icon">💰</span>
+              <span>Empréstimos</span>
+            </button>
+            <button class="nav-item" data-view="installments">
+              <span class="nav-icon">📅</span>
+              <span>Parcelamentos</span>
+            </button>
+          </nav>
+
+          <nav class="nav-section">
+            <h2 class="nav-section-title">Sistema</h2>
+            <button class="nav-item" data-view="treasury">
+              <span class="nav-icon">🏦</span>
+              <span>Tesouro</span>
+            </button>
+            <button class="nav-item" data-view="logs">
+              <span class="nav-icon">📝</span>
+              <span>Logs</span>
+            </button>
+          </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="admin-content">
+
+          <!-- VIEW: OVERVIEW -->
+          <div class="view is-active" data-view="overview">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-label">Saldo Tesouro</div>
+                <div class="metric-value" id="metric-vault">$0</div>
+                <div class="metric-subtitle">Cofre público</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Inflação</div>
+                <div class="metric-value" id="metric-inflation">1.00</div>
+                <div class="metric-subtitle">Índice atual</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Taxa Tributária</div>
+                <div class="metric-value" id="metric-taxrate">0%</div>
+                <div class="metric-subtitle">Alíquota média</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Arrecadação Hoje</div>
+                <div class="metric-value" id="metric-today">$0</div>
+                <div class="metric-subtitle">Últimas 24h</div>
+              </div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="dashboard-card" data-action="quick-vault">
+                <div class="dashboard-icon">🏦</div>
+                <div class="dashboard-label">Saldo Cofre</div>
+              </div>
+              <div class="dashboard-card" data-action="quick-deposit">
+                <div class="dashboard-icon">💵</div>
+                <div class="dashboard-label">Depositar</div>
+              </div>
+              <div class="dashboard-card" data-action="quick-withdraw">
+                <div class="dashboard-icon">💸</div>
+                <div class="dashboard-label">Sacar</div>
+              </div>
+              <div class="dashboard-card" data-action="quick-debts">
+                <div class="dashboard-icon">📋</div>
+                <div class="dashboard-label">Ver Dívidas</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: CONTROLS -->
+          <div class="view" data-view="controls">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Controles Econômicos</h2>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Modo Inflação</label>
+                  <div class="segmented-control">
+                    <button class="segmented-btn is-active" data-setting="mode.inflation" data-value="auto">Auto</button>
+                    <button class="segmented-btn" data-setting="mode.inflation" data-value="manual">Manual</button>
+                  </div>
+                  <input type="number" id="manual-inflation" class="form-input" placeholder="1.0" step="0.01" disabled>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Modo Taxa (%)</label>
+                  <div class="segmented-control">
+                    <button class="segmented-btn is-active" data-setting="mode.taxrate" data-value="auto">Auto</button>
+                    <button class="segmented-btn" data-setting="mode.taxrate" data-value="manual">Manual</button>
+                  </div>
+                  <input type="number" id="manual-taxrate" class="form-input" placeholder="100" disabled>
+                </div>
+              </div>
+
+              <div class="panel-actions">
+                <button class="btn btn-secondary" data-action="reset-settings">Restaurar Padrão</button>
+                <button class="btn btn-primary" id="save-settings-btn" disabled>Salvar Alterações</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: TAXES -->
+          <div class="view" data-view="taxes">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Lançamento de Tributos</h2>
+              </div>
+
+              <div class="chips-container" id="tax-chips">
+                <span class="chip" data-tax="IPTU">IPTU</span>
+                <span class="chip" data-tax="IPVA">IPVA</span>
+                <span class="chip" data-tax="IRPF">IRPF</span>
+                <span class="chip" data-tax="ICMS">ICMS</span>
+                <span class="chip" data-tax="ISS">ISS</span>
+                <span class="chip" data-tax="ADMIN_FINE">Multa</span>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Modo de Alvo</label>
+                  <select id="tax-target-mode" class="form-select">
+                    <option value="citizenid">Cidadão Específico</option>
+                    <option value="all_online">Todos Online</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="tax-citizenid-group">
+                  <label class="form-label">CitizenID</label>
+                  <input type="text" id="tax-citizenid" class="form-input" placeholder="Digite o CitizenID">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Tipo de Tributo</label>
+                  <select id="tax-type" class="form-select">
+                    <!-- Populated by JS -->
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Valor Base</label>
+                  <input type="number" id="tax-base" class="form-input" placeholder="Valor do bem/serviço">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Valor Final</label>
+                  <input type="number" id="tax-amount" class="form-input" placeholder="Valor do tributo">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                  <label class="form-label">Motivo / Descrição</label>
+                  <input type="text" id="tax-reason" class="form-input" placeholder="Ex: IPTU - Apartamento Centro">
+                </div>
+              </div>
+
+              <div id="tax-preview" class="alert alert-info hidden">
+                <span id="tax-preview-text"></span>
+              </div>
+
+              <div class="panel-actions">
+                <button class="btn btn-secondary" data-action="calc-tax">Simular</button>
+                <button class="btn btn-primary" data-action="submit-tax">Lançar Tributo</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: DEBTS -->
+          <div class="view" data-view="debts">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Gestão de Dívidas</h2>
+                <button class="btn btn-secondary btn-sm" data-action="refresh-debts">Atualizar</button>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-label">Total em Dívidas</div>
+                  <div class="metric-value" id="debts-total">$0</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Devedores Ativos</div>
+                  <div class="metric-value" id="debts-count">0</div>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Buscar por CitizenID</label>
+                  <input type="text" id="debt-search-citizenid" class="form-input" placeholder="Digite o CitizenID">
+                </div>
+              </div>
+
+              <div class="panel-actions">
+                <button class="btn btn-secondary" data-action="list-all-debts">Ver Todas</button>
+                <button class="btn btn-primary" data-action="search-debt">Buscar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: LOANS -->
+          <div class="view" data-view="loans">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Gestão de Empréstimos</h2>
+                <button class="btn btn-secondary btn-sm" data-action="refresh-loans">Atualizar</button>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-label">Total Emprestado</div>
+                  <div class="metric-value money" id="loans-total">$0</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Taxa Média</div>
+                  <div class="metric-value" id="loans-avg-rate">0%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Empréstimos Ativos</div>
+                  <div class="metric-value" id="loans-count">0</div>
+                </div>
+              </div>
+
+              <h3 class="panel-title mt-6">Simular Empréstimo</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">CitizenID</label>
+                  <input type="text" id="loan-citizenid" class="form-input" placeholder="Digite o CitizenID">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Valor</label>
+                  <input type="number" id="loan-amount" class="form-input" placeholder="Valor do empréstimo">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Parcelas</label>
+                  <input type="number" id="loan-installments" class="form-input" placeholder="Número de parcelas" value="12">
+                </div>
+              </div>
+
+              <div id="loan-simulation-result" class="panel hidden mt-4">
+                <div class="info-list" id="loan-sim-details"></div>
+              </div>
+
+              <div class="panel-actions">
+                <button class="btn btn-secondary" data-action="list-all-loans">Ver Todos</button>
+                <button class="btn btn-primary" data-action="simulate-loan">Simular</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: INSTALLMENTS -->
+          <div class="view" data-view="installments">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Gestão de Parcelamentos</h2>
+                <button class="btn btn-secondary btn-sm" data-action="refresh-installments">Atualizar</button>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <div class="metric-label">Total Parcelado</div>
+                  <div class="metric-value money" id="installments-total">$0</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">Planos Ativos</div>
+                  <div class="metric-value" id="installments-count">0</div>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Buscar por CitizenID</label>
+                  <input type="text" id="installment-search-citizenid" class="form-input" placeholder="Digite o CitizenID">
+                </div>
+              </div>
+
+              <div class="panel-actions">
+                <button class="btn btn-secondary" data-action="list-all-installments">Ver Todos</button>
+                <button class="btn btn-primary" data-action="search-installment">Buscar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: TREASURY -->
+          <div class="view" data-view="treasury">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Tesouro Público</h2>
+              </div>
+
+              <div class="metric-card mb-6">
+                <div class="metric-label">Saldo Atual</div>
+                <div class="metric-value money" id="treasury-balance">$0</div>
+                <div class="metric-subtitle">Cofre governamental</div>
+              </div>
+
+              <div class="dashboard-grid">
+                <div class="dashboard-card" data-action="treasury-deposit">
+                  <div class="dashboard-icon">💵</div>
+                  <div class="dashboard-label">Depositar</div>
+                </div>
+                <div class="dashboard-card" data-action="treasury-withdraw">
+                  <div class="dashboard-icon">💸</div>
+                  <div class="dashboard-label">Sacar</div>
+                </div>
+                <div class="dashboard-card" data-action="treasury-history">
+                  <div class="dashboard-icon">📊</div>
+                  <div class="dashboard-label">Histórico</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: LOGS -->
+          <div class="view" data-view="logs">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Logs do Sistema</h2>
+                <button class="btn btn-secondary btn-sm" data-action="refresh-logs">Atualizar</button>
+              </div>
+
+              <div class="table-container">
+                <table id="logs-table">
+                  <thead>
+                    <tr>
+                      <th>Data/Hora</th>
+                      <th>Categoria</th>
+                      <th>Mensagem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="3" class="text-center text-muted">Carregando logs...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         SIMPLE MODALS & DIALOGS
+    ===================================================== -->
+
+    <!-- Payment Modal -->
+    <section class="card" id="payment-modal">
+      <header class="card-header">
+        <h2 class="card-title">
+          <span class="card-title-icon">💳</span>
+          Pagamento de Taxa
+        </h2>
+      </header>
+      <div class="card-content">
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Valor</span>
+            <span class="money" id="payment-amount">$0</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Motivo</span>
+            <span class="info-value" id="payment-reason">—</span>
+          </div>
+        </div>
+      </div>
+      <footer class="card-actions">
+        <button class="btn btn-secondary" data-action="refuse-payment">Recusar</button>
+        <button class="btn btn-success" data-action="confirm-payment">Pagar</button>
+      </footer>
+    </section>
+
+    <!-- Generic Input Modal -->
+    <section class="card" id="input-modal">
+      <header class="card-header">
+        <h2 class="card-title" id="input-modal-title">Digite</h2>
+      </header>
+      <div class="card-content">
+        <div class="form-group mb-0">
+          <label class="form-label" id="input-modal-label">Valor</label>
+          <input type="text" id="input-modal-field" class="form-input" placeholder="Digite aqui">
+        </div>
+      </div>
+      <footer class="card-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" id="input-modal-confirm">Confirmar</button>
+      </footer>
+    </section>
+
+    <!-- Debt List Modal -->
+    <section class="card" id="debt-list-modal" style="width: min(800px, 95vw);">
+      <header class="card-header">
+        <h2 class="card-title">
+          <span class="card-title-icon">📋</span>
+          Lista de Dívidas
+        </h2>
+        <button class="btn btn-icon btn-secondary btn-sm" data-close>✖</button>
+      </header>
+      <div class="card-content">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>CitizenID</th>
+                <th>Valor</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="debt-list-tbody">
+              <tr>
+                <td colspan="4" class="text-center text-muted">Nenhuma dívida encontrada</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Debt Detail Modal -->
+    <section class="card" id="debt-detail-modal">
+      <header class="card-header">
+        <h2 class="card-title">
+          <span class="card-title-icon">💳</span>
+          Detalhes da Dívida
+        </h2>
+        <button class="btn btn-icon btn-secondary btn-sm" data-close>✖</button>
+      </header>
+      <div class="card-content">
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Nome</span>
+            <span class="info-value" id="debt-detail-name">—</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">CitizenID</span>
+            <span class="info-value" id="debt-detail-citizenid">—</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Valor</span>
+            <span class="money" id="debt-detail-amount">$0</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Motivo</span>
+            <span class="info-value" id="debt-detail-reason">—</span>
+          </div>
+        </div>
+      </div>
+      <footer class="card-actions">
+        <button class="btn btn-secondary" data-close>Fechar</button>
+        <button class="btn btn-danger" data-action="collect-this-debt">Cobrar</button>
+      </footer>
+    </section>
+
+    <!-- Success Modal -->
+    <section class="card" id="success-modal">
+      <div class="card-content text-center">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
+        <h2 class="card-title mb-2" id="success-message">Operação realizada com sucesso!</h2>
+        <button class="btn btn-primary" data-close style="margin-top: 1.5rem;">Fechar</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
