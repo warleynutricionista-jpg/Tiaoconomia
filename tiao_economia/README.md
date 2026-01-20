@@ -32,6 +32,12 @@ Sistema econômico COMPLETO e ULTRA-REALISTA para servidores FiveM/QBCore, simul
    - Eventos setoriais (crise de combustível, safra recorde, etc)
    - Efeitos reais em toda a economia
    - Histórico completo de eventos
+   - **Desfecho configurável** (auto ou manual)
+
+4. **🧾 Money Trail** - Rastreamento de Trajeto do Dinheiro
+   - Registro de fluxos de alto valor (evita microtransações)
+   - Origem/destino por player, tesouro e sociedades
+   - Limpeza automática por retenção
 
 4. **📈 Stock Market** - Bolsa de Valores Completa
    - 8 empresas listadas e negociáveis
@@ -182,6 +188,7 @@ restart tiao_economia
 ```bash
 /eco_evento                 # Ver evento econômico ativo
 /eco_trigger <evento_id>    # Disparar evento manualmente
+/eco_desfecho <id|auto>     # Definir desfecho do evento ativo
 /eco_historico              # Histórico dos últimos 10 eventos
 ```
 

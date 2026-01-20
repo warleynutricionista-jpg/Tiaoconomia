@@ -232,6 +232,38 @@ Config.Treasury = {
 }
 
 -- ============================================================
+-- RASTREAMENTO DE TRAJETO DO DINHEIRO (AUDITORIA AVANÇADA)
+-- ============================================================
+Config.MoneyTrail = {
+  Enabled = true,
+  MinAmount = 50000, -- Só registra acima desse valor
+  LogAccounts = {
+    bank = true,
+    cash = false,
+  },
+  Dynamic = {
+    Enabled = true,
+    PercentOfCirculation = 0.001, -- 0.1% da circulação total
+    Min = 10000,
+    Max = 500000,
+  },
+  RetentionDays = 30,
+  IgnoreReasons = { 'rollback', 'liberacao_quarentena' },
+}
+
+-- ============================================================
+-- EVENTOS ECONÔMICOS (AUTÔNOMO + DESFECHO MANUAL)
+-- ============================================================
+Config.EconomicEvents = {
+  AutoTrigger = true,
+  AutoIntervalMinutes = 30,
+  Outcome = {
+    Mode = 'auto', -- auto | manual | none
+    Default = 'neutro',
+  },
+}
+
+-- ============================================================
 -- INFLAÇÃO
 -- ============================================================
 Config.Inflation = {

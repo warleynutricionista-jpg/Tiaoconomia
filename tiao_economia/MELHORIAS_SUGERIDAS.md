@@ -8,6 +8,21 @@
 
 ## 📊 **Categorias de Melhorias**
 
+## ✅ **Revisão solicitada (Autonomia + Controle Manual)**
+
+### 🧭 Direções de Jogabilidade e Métricas
+- **Autonomia com governança:** eventos econômicos seguem rodando sozinhos, mas com desfecho configurável (auto/manual) para diretrizes do staff.
+- **Métricas de macroeconomia:** adicionar painel com inflação, desemprego, PIB per capita, circulação total, velocidade do dinheiro e “tamanho médio das transações”.
+- **Eventos encadeados:** permitir que crises/booms gerem eventos secundários (ex.: crise financeira → desemprego → queda de consumo).
+- **Política de ajustes graduais:** limitar mudanças bruscas com “cooldowns” e curvas de suavização.
+
+### 🔍 Controle de Origem do Dinheiro
+- **Rastreamento de trajeto (Money Trail):** registrar apenas fluxos de alto valor para evitar microtransações.
+- **Threshold dinâmico:** ajustar automaticamente o mínimo de log com base na circulação econômica atual.
+- **Relatórios de compliance:** filtros por player, motivo, origem/destino e período.
+
+---
+
 ### 🔴 **CRÍTICAS** - Impacto Alto / Urgência Alta
 ### 🟡 **IMPORTANTES** - Impacto Médio / Urgência Média
 ### 🟢 **MELHORIAS** - Impacto Baixo / Melhoria de Qualidade

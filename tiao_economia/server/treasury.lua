@@ -22,6 +22,10 @@ local function logVault(reason, amount, before, after, meta)
   else
     U.dbg(('Cofre %s %d (antes=%d depois=%d)'):format(reason or 'ajuste', amount, before, after))
   end
+
+  if SE.MoneyTrail and SE.MoneyTrail.LogTreasury then
+    SE.MoneyTrail.LogTreasury(amount, reason or 'ajuste', meta or {})
+  end
 end
 
 --============================================================

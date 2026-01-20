@@ -55,6 +55,7 @@ server_scripts {
   'server/security_guard.lua',  -- Economy Guard
   'server/rewards.lua',         -- Sistema de recompensas
   'server/discord.lua',         -- Discord webhooks
+  'server/money_trail.lua',     -- Rastreamento de dinheiro
 
   -- Sistemas Econômicos Avançados v4.0
   'server/economy_monitor.lua',  -- PIB, Circulação Monetária
@@ -183,6 +184,12 @@ exports {
   'GetDashboardData',
   'GetWeeklyRevenue',
   'GetTopDebtors',
+}
+
+-- Money trail
+exports {
+  'LogMoneyTrail',
+  'GetMoneyTrail',
 }
 
 -- Audit (v3.1)

@@ -356,6 +356,10 @@ Config.Permissions = {
 - `GetEconomyReport()`
 - `GetDailyMetrics()`
 
+### Money Trail (Rastreamento de Dinheiro)
+- `LogMoneyTrail(payload)`
+- `GetMoneyTrail(limit)`
+
 **Arquivos:**
 - `fxmanifest.lua:85-135` - Lista de exports
 

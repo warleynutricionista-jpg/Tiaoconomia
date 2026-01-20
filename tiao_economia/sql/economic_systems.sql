@@ -14,6 +14,26 @@ CREATE TABLE IF NOT EXISTS `space_economy_transactions` (
   INDEX `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Tabela de Rastreamento do Dinheiro (Alta Granularidade)
+CREATE TABLE IF NOT EXISTS `space_economy_money_trail` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `amount` BIGINT NOT NULL,
+  `account` VARCHAR(16) NOT NULL,
+  `flow_type` VARCHAR(16) NOT NULL,
+  `reason` VARCHAR(128) NULL,
+  `from_type` VARCHAR(32) NULL,
+  `from_id` VARCHAR(64) NULL,
+  `to_type` VARCHAR(32) NULL,
+  `to_id` VARCHAR(64) NULL,
+  `metadata` LONGTEXT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_timestamp` (`timestamp`),
+  INDEX `idx_from` (`from_type`, `from_id`),
+  INDEX `idx_to` (`to_type`, `to_id`),
+  INDEX `idx_amount` (`amount`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Tabela de Histórico da SELIC (Monetary Policy)
 CREATE TABLE IF NOT EXISTS `space_economy_selic_history` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
