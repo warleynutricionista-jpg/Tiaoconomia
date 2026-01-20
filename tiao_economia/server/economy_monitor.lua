@@ -753,7 +753,8 @@ RegisterCommand('eco_debug', function(source, args)
   local dbStatus = (MySQL and 'conectado') or 'indisponível'
   local lastTx = MonitorState.lastTransaction
 
-  local inflation = (SE.MonetaryPolicy and SE.MonetaryPolicy.GetReport and SE.MonetaryPolicy.GetReport().inflation and SE.MonetaryPolicy.GetReport().inflation.annual)
+  local monetaryReport = SE.MonetaryPolicy and SE.MonetaryPolicy.GetReport and SE.MonetaryPolicy.GetReport()
+  local inflation = (monetaryReport and monetaryReport.inflation and monetaryReport.inflation.annual)
     or (SE.State and SE.State.inflationRate) or 0
   local prevInflation = MonitorState.lastInflationDebug
   local trend = 'estável'
