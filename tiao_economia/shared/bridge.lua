@@ -74,6 +74,17 @@ function B.IsQBCore()
   return exports and exports['qb-core'] ~= nil
 end
 
+function B.IsESX()
+  return exports and exports['es_extended'] ~= nil
+end
+
+function B.GetFrameworkName()
+  if B.IsQBX() then return 'qbx' end
+  if B.IsQBCore() then return 'qbcore' end
+  if B.IsESX() then return 'esx' end
+  return 'unknown'
+end
+
 function B.GetPlayer(src)
   src = tonumber(src)
   if not src or src <= 0 then return nil end

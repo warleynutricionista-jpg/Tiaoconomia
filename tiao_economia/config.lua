@@ -302,7 +302,38 @@ Config.Security = {
     WindowSeconds = 3600,
     CheckIntervalSeconds = 300,
     HighValueBlock = 250000, -- bloqueia compras altas em emergência
-  }
+  },
+
+  -- Disjuntores de segurança (Circuit Breakers)
+  CircuitBreaker = {
+    MaxInflationDeltaPerHour = 0.05, -- 5% por hora
+    MaxTaxMultiplier = 0.40, -- 40% absoluto
+    MaxSelicMonthly = 0.05, -- 5% ao mês
+    CooldownHours = 6, -- bloqueia ajustes automáticos após disparo
+  },
+}
+
+-- ============================================================
+-- ALERTAS DE DINHEIRO ILEGAL (RP/INVESTIGAÇÕES)
+-- ============================================================
+Config.IllegalMoney = {
+  Enabled = true,
+  Reasons = {
+    'dirty', 'ilegal', 'illegal', 'contrabando', 'drogas', 'drugs', 'launder', 'lavagem'
+  },
+  Dispatch = {
+    Enabled = true,
+    Resource = 'ps-dispatch',
+    Code = '10-75',
+    Title = 'Investigação Financeira',
+    Message = 'Movimentação suspeita de dinheiro ilegal detectada.',
+  },
+  MDT = {
+    Enabled = true,
+    Resource = 'ps-mdt',
+    Title = 'Investigação Financeira',
+    Tags = { 'financeiro', 'lavagem', 'ilegal' },
+  },
 }
 
 -- ============================================================

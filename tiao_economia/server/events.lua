@@ -276,6 +276,10 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       local out = (SE.Admin and SE.Admin.GetStatePayload and SE.Admin.GetStatePayload()) or {}
       return SendAdminPacket(src, dataType, out, true)
 
+    elseif dataType == 'admin_dashboard' then
+      local dashboard = (SE.Metrics and SE.Metrics.GetAdminDashboardData and SE.Metrics.GetAdminDashboardData()) or {}
+      return SendAdminPacket(src, dataType, { dashboard = dashboard }, true)
+
     elseif dataType == 'admin_saveSettings' then
       if SE.Admin and SE.Admin.ApplySettings then
         SE.Admin.ApplySettings(payload.settings or payload)
@@ -467,6 +471,25 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       local limit = Num(payload.limit, 80)
       return SendAdminPacket(src, dataType, { logs = fetchLogs(limit) }, true)
 
+    --========================
+    -- COPOM Manual (Admin Dashboard)
+    --========================
+    elseif dataType == 'admin_copom_action' then
+      local action = tostring(payload.action or '')
+      if not (SE.MonetaryPolicy and SE.MonetaryPolicy.ManualCopomAction) then
+        return SendAdminPacket(src, 'error', { message = 'Política monetária indisponível.' }, false)
+      end
+
+      local result = SE.MonetaryPolicy.ManualCopomAction(action)
+      if SE.Discord and SE.Discord.AdminAction then
+        SE.Discord.AdminAction(src, 'COPOM Manual', {
+          action = action,
+          selic = result and result.selic,
+        })
+      end
+
+      return SendAdminPacket(src, dataType, { result = result }, true)
+
     else
       return SendAdminPacket(src, 'error', { message = ('Ação não suportada: %s'):format(dataType) }, false)
     end
@@ -562,4 +585,228 @@ RegisterNetEvent('space_economy:server_washMoney', function(businessId, amount, 
     return SE.Integrations.WashMoney(src, businessId, amount, feePercent)
   end
   Notify(src, 'Lavagem não configurada neste servidor.', 'error')
+end)
+
+--============================================================
+-- Intervenções Econômicas (Game Master)
+--============================================================
+SE.Events = SE.Events or {}
+
+local function ensureEventSettings()
+  SE.State.settings = type(SE.State.settings) == 'table' and SE.State.settings or {}
+  SE.State.settings.economicEvents = type(SE.State.settings.economicEvents) == 'table'
+    and SE.State.settings.economicEvents or {}
+  return SE.State.settings.economicEvents
+end
+
+local function setEconomicEvent(key, data)
+  local settings = ensureEventSettings()
+  settings[key] = data
+  if SE.Server and SE.Server.MarkDirty then
+    SE.Server.MarkDirty()
+  end
+end
+
+function SE.Events.GetActiveEvent(key)
+  local settings = ensureEventSettings()
+  local event = settings[key]
+  if not event then return nil end
+  if event.expiresAt and os.time() > event.expiresAt then
+    settings[key] = nil
+    return nil
+  end
+  return event
+end
+
+RegisterNetEvent('space_economy:server_triggerEconomicEvent', function(eventKey)
+  local src = source
+  if not AdminAllowed(src) then
+    return Notify(src, 'Acesso negado.', 'error')
+  end
+
+  eventKey = tostring(eventKey or '')
+  local now = os.time()
+  local twoHours = 2 * 60 * 60
+
+  if eventKey == 'mining_boom' then
+    setEconomicEvent('mining_boom', {
+      multiplier = 0.5,
+      expiresAt = now + twoHours,
+      label = 'Boom da Mineração',
+      description = 'Impostos sobre minérios reduzidos em 50% por 2h.',
+    })
+
+    TriggerClientEvent('ox_lib:notify', -1, {
+      title = 'Boom da Mineração',
+      description = 'Impostos sobre minérios reduzidos em 50% por 2 horas.',
+      type = 'success',
+      duration = 10000,
+    })
+
+  elseif eventKey == 'oil_crisis' then
+    setEconomicEvent('oil_crisis', {
+      multiplier = 3.0,
+      expiresAt = now + twoHours,
+      label = 'Crise do Petróleo',
+      description = 'Imposto sobre combustível aumentado em 200% por 2h.',
+    })
+
+    TriggerClientEvent('ox_lib:notify', -1, {
+      title = 'Crise do Petróleo',
+      description = 'Impostos sobre combustível aumentados em 200% por 2 horas.',
+      type = 'warning',
+      duration = 10000,
+    })
+
+  elseif eventKey == 'gov_stimulus' then
+    local payout = 500
+    local paid = 0
+    for _, playerId in ipairs(GetPlayers()) do
+      local pid = tonumber(playerId)
+      if pid and SE.Integrations and SE.Integrations.AddMoney then
+        local okPay = SE.Integrations.AddMoney(pid, payout, 'bank', 'estímulo_governamental')
+        if okPay then paid = paid + 1 end
+      end
+    end
+
+    TriggerClientEvent('ox_lib:notify', -1, {
+      title = 'Estímulo Governamental',
+      description = ('Governo distribuiu $%d para cidadãos online.'):format(payout),
+      type = 'success',
+      duration = 10000,
+    })
+
+    SE.Log('admin', ('Estímulo Governamental distribuído para %d cidadãos'):format(paid), {
+      amount = payout,
+      recipients = paid,
+    })
+
+  elseif eventKey == 'tax_audit' then
+    local fined = 0
+    if SE.WealthTax and SE.WealthTax.BuildWealthSnapshot and MySQL and SE.Debts and SE.Debts.Upsert then
+      local snapshot = SE.WealthTax.BuildWealthSnapshot()
+      table.sort(snapshot, function(a, b) return (a.total or 0) > (b.total or 0) end)
+      for i = 1, math.min(#snapshot, 10) do
+        local entry = snapshot[i]
+        local totalDebt = MySQL.scalar.await([[
+          SELECT COALESCE(SUM(amount),0)
+          FROM space_economy_debts
+          WHERE citizenid = ?
+            AND status IN ('active','installment')
+        ]], { entry.citizenid }) or 0
+
+        totalDebt = Num(totalDebt, 0)
+        if totalDebt > 0 then
+          local fine = math.floor(totalDebt * 0.10)
+          if fine > 0 then
+            SE.Debts.Upsert(entry.citizenid, fine, 'Multa Auditoria Fiscal', os.time() + (7 * 24 * 60 * 60), {
+              base_debt = totalDebt,
+              rank = i,
+            })
+            fined = fined + 1
+          end
+        end
+      end
+    end
+
+    TriggerClientEvent('ox_lib:notify', -1, {
+      title = 'Auditoria Fiscal',
+      description = 'Auditoria aplicada nos 10 mais ricos. Multas emitidas para devedores.',
+      type = 'info',
+      duration = 10000,
+    })
+
+    SE.Log('admin', ('Auditoria fiscal concluída. Multas emitidas: %d'):format(fined))
+
+  else
+    return Notify(src, 'Evento econômico inválido.', 'error')
+  end
+
+  if SE.Discord and SE.Discord.AdminAction then
+    SE.Discord.AdminAction(src, 'Intervenção Econômica', { evento = eventKey })
+  end
+end)
+
+--============================================================
+-- Alertas de Dinheiro Ilegal (RP)
+--============================================================
+local function sendIllegalDispatch(payload)
+  local icfg = Config and Config.IllegalMoney and Config.IllegalMoney.Dispatch or {}
+  if not icfg.Enabled then return end
+  local resource = icfg.Resource or 'ps-dispatch'
+  if GetResourceState(resource) ~= 'started' then return end
+
+  local coords = payload.coords or { x = 0.0, y = 0.0, z = 0.0 }
+  pcall(function()
+    exports[resource]:CustomAlert({
+      dispatchcodename = 'spaceeconomy_illegal',
+      dispatchCode = icfg.Code or '10-75',
+      firstStreet = icfg.Title or 'Investigação Financeira',
+      priority = 2,
+      origin = { x = coords.x, y = coords.y, z = coords.z },
+      dispatchMessage = icfg.Message or 'Movimentação suspeita detectada.',
+      description = payload.description,
+      job = { 'police' },
+      blipSprite = 500,
+      blipColour = 1,
+      blipScale = 1.0,
+      blipLength = 3,
+    })
+  end)
+end
+
+local function sendIllegalMDT(payload)
+  local mcfg = Config and Config.IllegalMoney and Config.IllegalMoney.MDT or {}
+  if not mcfg.Enabled then return end
+  local resource = mcfg.Resource or 'ps-mdt'
+  if GetResourceState(resource) ~= 'started' then return end
+
+  pcall(function()
+    exports[resource]:NewReport({
+      author = 'Economia',
+      title = mcfg.Title or 'Investigação Financeira',
+      description = payload.description,
+      tags = mcfg.Tags or { 'financeiro' },
+      officers = {},
+    })
+  end)
+end
+
+RegisterNetEvent('space_economy:server_illegalMoneyAlert', function(payload)
+  payload = payload or {}
+  local src = payload.source or source
+  local amount = Num(payload.amount, 0)
+  local reason = tostring(payload.reason or 'desconhecido')
+  local citizenid = payload.citizenid or (B and B.GetCitizenId and B.GetCitizenId(src))
+
+  local coords = { x = 0.0, y = 0.0, z = 0.0 }
+  if src and src > 0 then
+    local ped = GetPlayerPed(src)
+    if ped and ped ~= 0 then
+      local vec = GetEntityCoords(ped)
+      coords = { x = vec.x, y = vec.y, z = vec.z }
+    end
+  end
+
+  local description = ('Movimentação ilegal: $%d | CID: %s | Motivo: %s'):format(amount, tostring(citizenid or 'N/A'), reason)
+
+  SE.Log('admin', 'Alerta de dinheiro ilegal', {
+    citizenid = citizenid,
+    amount = amount,
+    reason = reason,
+    resource = payload.resource,
+  })
+
+  if SE.Discord and SE.Discord.Alert then
+    SE.Discord.Alert('Dinheiro Ilegal Detectado', description)
+  end
+
+  sendIllegalDispatch({
+    coords = coords,
+    description = description,
+  })
+
+  sendIllegalMDT({
+    description = description,
+  })
 end)

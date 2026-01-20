@@ -216,6 +216,116 @@ function SE.Metrics.ExportToCSV(dataType)
 end
 
 --============================================================
+-- Admin Dashboard (Chart.js)
+--============================================================
+local function getLastDays(count)
+    local days = {}
+    for i = count - 1, 0, -1 do
+        days[#days + 1] = os.date('%Y-%m-%d', os.time() - (i * 86400))
+    end
+    return days
+end
+
+function SE.Metrics.GetAdminDashboardData()
+    local labels = getLastDays(7)
+    local inflationByDate = {}
+    local pibByDate = {}
+
+    if MySQL then
+        local inflationRows = MySQL.query.await([[
+            SELECT date, inflation_rate
+            FROM space_economy_daily_metrics
+            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            ORDER BY date ASC
+        ]]) or {}
+
+        for _, row in ipairs(inflationRows) do
+            inflationByDate[tostring(row.date)] = U.toNumber(row.inflation_rate, 1.0)
+        end
+
+        local pibRows = MySQL.query.await([[
+            SELECT DATE(created_at) as date, SUM(amount) as total
+            FROM space_economy_transactions
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ]]) or {}
+
+        for _, row in ipairs(pibRows) do
+            pibByDate[tostring(row.date)] = U.toNumber(row.total, 0)
+        end
+    end
+
+    local pibSeries = {}
+    local inflationSeries = {}
+    for _, date in ipairs(labels) do
+        pibSeries[#pibSeries + 1] = U.toNumber(pibByDate[date], 0)
+        inflationSeries[#inflationSeries + 1] = U.toNumber(inflationByDate[date], 1.0) * 100
+    end
+
+    local revenueBreakdown = {
+        labels = { 'IPVA', 'IPTU', 'Multas', 'IVA', 'Outros' },
+        values = { 0, 0, 0, 0, 0 },
+    }
+
+    if MySQL then
+        local row = MySQL.single.await([[
+            SELECT
+                SUM(CASE WHEN message LIKE '%IPVA%' THEN amount ELSE 0 END) as ipva_total,
+                SUM(CASE WHEN message LIKE '%IPTU%' THEN amount ELSE 0 END) as iptu_total,
+                SUM(CASE WHEN message LIKE '%MULTA%' OR message LIKE '%multa%' THEN amount ELSE 0 END) as multa_total,
+                SUM(CASE WHEN message LIKE '%IVA%' OR message LIKE '%ICMS%' THEN amount ELSE 0 END) as iva_total,
+                SUM(CASE WHEN message NOT LIKE '%IPVA%' AND message NOT LIKE '%IPTU%' AND message NOT LIKE '%IVA%' AND message NOT LIKE '%ICMS%'
+                          AND message NOT LIKE '%MULTA%' AND message NOT LIKE '%multa%' THEN amount ELSE 0 END) as outros_total
+            FROM space_economy_logs
+            WHERE category = 'tax'
+              AND amount > 0
+              AND timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ]]) or {}
+
+        revenueBreakdown.values = {
+            U.toNumber(row.ipva_total, 0),
+            U.toNumber(row.iptu_total, 0),
+            U.toNumber(row.multa_total, 0),
+            U.toNumber(row.iva_total, 0),
+            U.toNumber(row.outros_total, 0),
+        }
+    end
+
+    local sectors = {
+        labels = {},
+        values = {},
+    }
+
+    if MySQL then
+        local rows = MySQL.query.await([[
+            SELECT category, SUM(amount) as total
+            FROM space_economy_transactions
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY category
+            ORDER BY total DESC
+            LIMIT 10
+        ]]) or {}
+
+        for _, row in ipairs(rows) do
+            sectors.labels[#sectors.labels + 1] = tostring(row.category)
+            sectors.values[#sectors.values + 1] = U.toNumber(row.total, 0)
+        end
+    end
+
+    return {
+        timeline = {
+            labels = labels,
+            pib = pibSeries,
+            inflation = inflationSeries,
+        },
+        revenue = revenueBreakdown,
+        sectors = sectors,
+        generatedAt = os.time(),
+    }
+end
+
+--============================================================
 -- Event para NUI solicitar dashboard
 --============================================================
 RegisterNetEvent('space_economy:server_getDashboardMetrics', function()
@@ -231,6 +341,12 @@ RegisterNetEvent('space_economy:server_getDashboardMetrics', function()
     local dashboard = SE.Metrics.GetDashboardData()
 
     TriggerClientEvent('space_economy:client_dashboardMetrics', src, dashboard)
+end)
+
+RegisterNetEvent('tiao_economia:getAdminDashboardData', function()
+    local src = source
+    local dashboard = SE.Metrics.GetAdminDashboardData()
+    TriggerClientEvent('space_economy:client_adminData', src, 'admin_dashboard', dashboard)
 end)
 
 --============================================================
@@ -255,5 +371,6 @@ end)
 exports('GetDashboardData', SE.Metrics.GetDashboardData)
 exports('GetWeeklyRevenue', SE.Metrics.GetWeeklyRevenue)
 exports('GetTopDebtors', SE.Metrics.GetTopDebtors)
+exports('GetAdminDashboardData', SE.Metrics.GetAdminDashboardData)
 
 print(string.format('^2[space_economy]^7 Metrics system loaded - Cache TTL: %ds', MetricsCache.cacheTTL))

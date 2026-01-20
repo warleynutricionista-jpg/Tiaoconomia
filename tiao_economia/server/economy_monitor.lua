@@ -34,6 +34,8 @@ local MonitorState = {
   velocity = 0,             -- Velocidade de circulação
   bankingRate = 0,          -- Taxa de bancarização (%)
   population = 0,           -- População econômica ativa
+  activeMoney = 0,          -- Massa monetária de players ativos (7 dias)
+  gini = 0,                 -- Coeficiente de Gini
 
   -- Rastreamento de transações (últimas 24h)
   transactions = {
@@ -42,6 +44,7 @@ local MonitorState = {
     byCategory = {},
   },
 
+  lastGiniUpdate = 0,
   lastUpdate = 0,
 }
 
@@ -190,6 +193,91 @@ function EM.CalculateMoneyCirculation()
   }
 end
 
+--============================================================
+-- Massa Monetária de Players Ativos (últimos 7 dias)
+--============================================================
+function EM.CalculateActiveMoneySupply()
+  local activeMoney = 0
+  local cutoff = os.time() - (7 * 24 * 60 * 60)
+  local online = {}
+
+  if SE.Bridge and SE.Bridge.GetCitizenId then
+    for _, src in ipairs(GetPlayers()) do
+      local cid = SE.Bridge.GetCitizenId(tonumber(src))
+      if cid then
+        online[cid] = true
+      end
+    end
+  end
+
+  if SE.WealthTax and SE.WealthTax.BuildWealthSnapshot then
+    local snapshot = SE.WealthTax.BuildWealthSnapshot()
+    for _, entry in ipairs(snapshot) do
+      local lastSeen = entry.lastSeen
+      if (lastSeen and lastSeen >= cutoff) or (not lastSeen and online[entry.citizenid]) then
+        activeMoney = activeMoney + U.toInt(entry.cash, 0) + U.toInt(entry.bank, 0)
+      end
+    end
+  end
+
+  if activeMoney <= 0 then
+    activeMoney = MonitorState.playerMoney or 0
+  end
+
+  MonitorState.activeMoney = activeMoney
+  return activeMoney
+end
+
+--============================================================
+-- Coeficiente de Gini (Desigualdade)
+--============================================================
+function EM.CalculateGini()
+  local now = os.time()
+  if (now - (MonitorState.lastGiniUpdate or 0)) < 600 then
+    return MonitorState.gini or 0
+  end
+
+  if not (SE.WealthTax and SE.WealthTax.BuildWealthSnapshot) then
+    return MonitorState.gini or 0
+  end
+
+  local snapshot = SE.WealthTax.BuildWealthSnapshot()
+  if #snapshot == 0 then return MonitorState.gini or 0 end
+
+  local totals = {}
+  local sum = 0
+  for _, entry in ipairs(snapshot) do
+    local total = U.toNumber(entry.total, 0)
+    totals[#totals + 1] = total
+    sum = sum + total
+  end
+
+  if sum <= 0 then
+    MonitorState.gini = 0
+    MonitorState.lastGiniUpdate = now
+    return 0
+  end
+
+  table.sort(totals)
+  local n = #totals
+  local cumulative = 0
+  for i, value in ipairs(totals) do
+    cumulative = cumulative + (i * value)
+  end
+
+  local gini = (2 * cumulative) / (n * sum) - (n + 1) / n
+  gini = math.max(0, math.min(gini, 1))
+
+  MonitorState.gini = gini
+  MonitorState.lastGiniUpdate = now
+
+  if gini > 0.60 then
+    U.dbg('[Economy Monitor] Gini acima de 0.60. Sugestão: aumentar Wealth Tax.')
+  end
+
+  return gini
+end
+
 function EM.GetTotalCirculation()
   return MonitorState.totalCirculation or 0
 end
@@ -258,9 +346,9 @@ function EM.CalculateVelocity()
   -- Indica quantas vezes o dinheiro "gira" na economia
 
   local transactionVolume = MonitorState.transactions.volume or 0
-  local totalCirculation = MonitorState.totalCirculation or 1
+  local activeMoney = EM.CalculateActiveMoneySupply()
 
-  local velocity = totalCirculation > 0 and (transactionVolume / totalCirculation) or 0
+  local velocity = activeMoney > 0 and (transactionVolume / activeMoney) or 0
 
   MonitorState.velocity = velocity
 
@@ -274,6 +362,7 @@ function EM.UpdateAll()
   EM.CalculateMoneyCirculation()
   EM.CalculatePIB()
   EM.CalculateVelocity()
+  EM.CalculateGini()
 
   MonitorState.lastUpdate = os.time()
 
@@ -318,6 +407,8 @@ function EM.GetReport()
     indicators = {
       velocity = MonitorState.velocity,
       population = MonitorState.population,
+      activeMoney = MonitorState.activeMoney,
+      gini = MonitorState.gini,
     },
 
     transactions = {
