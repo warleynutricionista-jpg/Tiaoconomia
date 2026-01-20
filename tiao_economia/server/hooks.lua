@@ -36,6 +36,16 @@ local function classifyCategory(resourceName, reason)
   local res = normalize(resourceName)
   local rea = normalize(reason)
 
+  if rea:find('buying_vehicle') or rea:find('vehicle') then
+    return 'compra_veiculo'
+  end
+  if rea:find('tax') or rea:find('imposto') then
+    return 'imposto'
+  end
+  if rea:find('transfer') or rea:find('transferencia') then
+    return 'transferencia_bancaria'
+  end
+
   if res:find('vehicleshop') or res:find('vehshop') then
     return 'compra_veiculo'
   end
@@ -60,16 +70,18 @@ local function classifyCategory(resourceName, reason)
   if rea:find('servico') then
     return 'servico_geral'
   end
-  if rea:find('imposto') or rea:find('tax') then
-    return 'imposto'
-  end
 
   return 'compra_item'
 end
 
 local function shouldTrack(reason)
   local rea = normalize(reason)
-  return rea:find('compra') or rea:find('imposto') or rea:find('servico')
+  return rea:find('compra')
+    or rea:find('imposto')
+    or rea:find('servico')
+    or rea:find('tax')
+    or rea:find('transfer')
+    or rea:find('buy')
 end
 
 local function registerTransaction(src, amount, reason, resourceName, extra)
@@ -110,10 +122,11 @@ local function handleMoneyChange(src, account, amount, action, reason)
   if not src or not amount then return end
   local res = GetInvokingResource() or 'unknown'
   local normalizedAction = normalize(action)
+  local reasonSafe = reason or 'unknown'
 
   if amount < 0 or normalizedAction == 'remove' then
-    registerTransaction(src, amount, reason, res, { account = account })
-    handleIllegalMoney(src, amount, reason, res)
+    registerTransaction(src, amount, reasonSafe, res, { account = account })
+    handleIllegalMoney(src, amount, reasonSafe, res)
   end
 end
 
@@ -151,6 +164,45 @@ AddEventHandler('ox_inventory:swapItems', function(data)
   registerTransaction(data.source or 0, amount, 'compra', res, {
     item = (data.toSlot and data.toSlot.name) or data.toSlotName or 'item',
     shop = data.shop or data.shopType or nil,
+  })
+end)
+
+--============================================================
+-- Hooks Banking (ps-banking / qb-banking) para velocidade do dinheiro
+--============================================================
+local function registerBankTransfer(src, amount, reason, resourceName, extra)
+  if not (SE.EconomyMonitor and SE.EconomyMonitor.RegisterTransaction) then return end
+  amount = math.abs(U.toInt(amount, 0))
+  if amount <= 0 then return end
+  SE.EconomyMonitor.RegisterTransaction('transferencia_bancaria', amount, {
+    reason = reason,
+    resource = resourceName,
+    citizenid = B and B.GetCitizenId and B.GetCitizenId(src) or nil,
+    extra = extra,
+  })
+end
+
+AddEventHandler('ps-banking:server:transfer', function(fromSrc, toAccount, amount, reason)
+  registerBankTransfer(fromSrc, amount, reason or 'transfer', GetInvokingResource() or 'ps-banking', {
+    toAccount = toAccount,
+  })
+end)
+
+AddEventHandler('ps-banking:server:transferMoney', function(fromSrc, toAccount, amount, reason)
+  registerBankTransfer(fromSrc, amount, reason or 'transfer', GetInvokingResource() or 'ps-banking', {
+    toAccount = toAccount,
+  })
+end)
+
+AddEventHandler('qb-banking:server:TransferMoney', function(fromSrc, toAccount, amount, reason)
+  registerBankTransfer(fromSrc, amount, reason or 'transfer', GetInvokingResource() or 'qb-banking', {
+    toAccount = toAccount,
+  })
+end)
+
+AddEventHandler('qb-banking:server:transferMoney', function(fromSrc, toAccount, amount, reason)
+  registerBankTransfer(fromSrc, amount, reason or 'transfer', GetInvokingResource() or 'qb-banking', {
+    toAccount = toAccount,
   })
 end)
 

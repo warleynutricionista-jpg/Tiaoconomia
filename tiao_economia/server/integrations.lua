@@ -61,6 +61,63 @@ local function listResourceStates(resources)
 end
 
 --============================================================
+-- Cache simples (dados estáticos como nome do personagem)
+--============================================================
+local PlayerCache = {
+  ttl = 60,
+  names = {},
+}
+
+local function cacheGet(container, key)
+  local entry = container[key]
+  if not entry then return nil end
+  if (os.time() - entry.ts) > PlayerCache.ttl then
+    container[key] = nil
+    return nil
+  end
+  return entry.value
+end
+
+local function cacheSet(container, key, value)
+  container[key] = { value = value, ts = os.time() }
+end
+
+function SE.Integrations.GetCharacterName(srcOrCid)
+  local cid = nil
+  local src = nil
+
+  if type(srcOrCid) == 'number' then
+    src = tonumber(srcOrCid)
+  elseif type(srcOrCid) == 'string' then
+    cid = trim(srcOrCid)
+    if cid:match('^%d+$') then
+      src = tonumber(cid)
+      cid = nil
+    end
+  end
+
+  if src then
+    local cached = cacheGet(PlayerCache.names, src)
+    if cached then return cached end
+
+    local name = (B and B.GetCharName and B.GetCharName(src)) or 'Desconhecido'
+    cacheSet(PlayerCache.names, src, name)
+    return name
+  end
+
+  if cid then
+    local cached = cacheGet(PlayerCache.names, cid)
+    if cached then return cached end
+
+    local name = (SE.CharCache and SE.CharCache.ResolveName and SE.CharCache.ResolveName(cid)) or 'Desconhecido'
+    cacheSet(PlayerCache.names, cid, name)
+    return name
+  end
+
+  return 'Desconhecido'
+end
+
+--============================================================
 -- MySQL wrapper (oxmysql / mysql-async / MySQL.*)
 --============================================================
 local function dbQuery(sql, params)

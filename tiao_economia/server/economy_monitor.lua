@@ -8,6 +8,7 @@ SE.EconomyMonitor = SE.EconomyMonitor or {}
 
 local U = SE.Util
 local EM = SE.EconomyMonitor
+local GlobalConfig = Config
 
 --============================================================
 -- Estado do Monitor
@@ -44,6 +45,7 @@ local MonitorState = {
     byCategory = {},
   },
 
+  lastTransaction = nil,
   lastGiniUpdate = 0,
   lastUpdate = 0,
 }
@@ -54,6 +56,7 @@ local MonitorState = {
 local Config = {
   UpdateInterval = 60000,        -- Atualizar a cada 1 minuto
   TransactionHistoryHours = 24,  -- Manter histórico de 24h
+  Debug = (GlobalConfig and GlobalConfig.Debug) or false,
 
   -- Categorias de transação para PIB
   Categories = {
@@ -106,6 +109,13 @@ function EM.RegisterTransaction(category, amount, metadata)
   MonitorState.transactions.byCategory[category].count = MonitorState.transactions.byCategory[category].count + 1
   MonitorState.transactions.byCategory[category].volume = MonitorState.transactions.byCategory[category].volume + amount
 
+  MonitorState.lastTransaction = {
+    category = category,
+    amount = amount,
+    metadata = metadata,
+    timestamp = os.time(),
+  }
+
   -- Salvar no banco de dados para histórico
   if MySQL then
     CreateThread(function()
@@ -121,6 +131,11 @@ function EM.RegisterTransaction(category, amount, metadata)
         })
       end)
     end)
+  end
+
+  if Config.Debug then
+    local sourceInfo = metadata and (metadata.resource or metadata.source or 'unknown') or 'unknown'
+    U.dbg(('[EcoMonitor] Transação detectada via Hook: $%d (Fonte: %s)'):format(amount, sourceInfo))
   end
 
   U.dbg(('[Economy Monitor] Transaction: %s = $%d'):format(category, amount))
@@ -280,6 +295,10 @@ end
 
 function EM.GetTotalCirculation()
   return MonitorState.totalCirculation or 0
+end
+
+function EM.GetLastTransaction()
+  return MonitorState.lastTransaction
 end
 
 --============================================================
@@ -503,6 +522,71 @@ RegisterCommand('eco_relatorio', function(source, args)
     TriggerClientEvent('ox_lib:notify', src, {
       type = 'success',
       description = 'Relatório gerado no console do servidor'
+    })
+  end
+end, false)
+
+--============================================================
+-- Comando: Diagnóstico de Integrações
+--============================================================
+RegisterCommand('eco_debug', function(source, args)
+  local src = tonumber(source)
+
+  if src ~= 0 and SE.Admin and SE.Admin.IsAllowed then
+    if not SE.Admin.IsAllowed(src) then
+      if src ~= 0 then
+        TriggerClientEvent('ox_lib:notify', src, {
+          type = 'error',
+          description = 'Sem permissão'
+        })
+      end
+      return
+    end
+  end
+
+  local framework = (SE.Framework or (SE.Bridge and SE.Bridge.GetFrameworkName and SE.Bridge.GetFrameworkName()) or 'unknown')
+  local dbStatus = (MySQL and 'conectado') or 'indisponível'
+  local lastTx = MonitorState.lastTransaction
+
+  local inflation = (SE.MonetaryPolicy and SE.MonetaryPolicy.GetReport and SE.MonetaryPolicy.GetReport().inflation and SE.MonetaryPolicy.GetReport().inflation.annual)
+    or (SE.State and SE.State.inflationRate) or 0
+  local prevInflation = MonitorState.lastInflationDebug
+  local trend = 'estável'
+  if prevInflation ~= nil then
+    if inflation > prevInflation then trend = 'alta'
+    elseif inflation < prevInflation then trend = 'queda' end
+  end
+  MonitorState.lastInflationDebug = inflation
+
+  local output = {
+    '\n========================================',
+    'ECONOMIA - DEBUG',
+    '========================================',
+    ('Framework detectado: %s'):format(framework),
+    ('Banco de Dados: %s'):format(dbStatus),
+    ('Inflação atual: %.4f (%s)'):format(inflation, trend),
+  }
+
+  if lastTx then
+    table.insert(output, ('Última transação: %s | $%d | %s'):format(
+      tostring(lastTx.category),
+      U.toInt(lastTx.amount, 0),
+      lastTx.metadata and (lastTx.metadata.resource or lastTx.metadata.source or 'desconhecido') or 'desconhecido'
+    ))
+  else
+    table.insert(output, 'Última transação: nenhuma')
+  end
+
+  table.insert(output, '========================================\n')
+
+  for _, line in ipairs(output) do
+    print(line)
+  end
+
+  if src ~= 0 then
+    TriggerClientEvent('ox_lib:notify', src, {
+      type = 'success',
+      description = 'Diagnóstico gerado no console do servidor'
     })
   end
 end, false)
