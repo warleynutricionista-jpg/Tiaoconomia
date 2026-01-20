@@ -102,6 +102,281 @@ local function HasMySQL()
   return MySQL and MySQL.query and MySQL.query.await and MySQL.scalar and MySQL.scalar.await and MySQL.update and MySQL.update.await and MySQL.insert and MySQL.insert.await
 end
 
+-- ===== camada de dados unificada
+SE.DB = SE.DB or {}
+local DB = SE.DB
+
+DB.State = {
+  tables = {},
+  columns = {},
+}
+
+local function GetDatabaseConfig()
+  return (Config and Config.Database) or {}
+end
+
+local function TableExists(tableName)
+  if DB.State.tables[tableName] ~= nil then
+    return DB.State.tables[tableName]
+  end
+
+  local ok, rows = pcall(function()
+    return MySQL.query.await('SHOW TABLES LIKE ?', { tableName })
+  end)
+
+  local exists = ok and rows and #rows > 0
+  DB.State.tables[tableName] = exists and true or false
+  return DB.State.tables[tableName]
+end
+
+local function LoadColumns(tableName)
+  if DB.State.columns[tableName] then
+    return DB.State.columns[tableName]
+  end
+
+  if not TableExists(tableName) then
+    DB.State.columns[tableName] = false
+    return nil
+  end
+
+  local ok, cols = pcall(function()
+    return MySQL.query.await(('SHOW COLUMNS FROM `%s`'):format(tableName))
+  end)
+
+  if not ok or not cols then
+    DB.State.columns[tableName] = false
+    return nil
+  end
+
+  local map = {}
+  for _, row in ipairs(cols) do
+    if row and row.Field then
+      map[row.Field] = true
+    end
+  end
+
+  DB.State.columns[tableName] = map
+  return map
+end
+
+local function GetPlayersMoneyTotal(playersTable)
+  if not HasMySQL() then return 0 end
+  if not TableExists(playersTable) then return 0 end
+
+  local columns = LoadColumns(playersTable)
+  if not columns or columns == false then return 0 end
+
+  local selectCols = {}
+  if columns.money then selectCols[#selectCols + 1] = 'money' end
+  if columns.cash then selectCols[#selectCols + 1] = 'cash' end
+  if columns.bank then selectCols[#selectCols + 1] = 'bank' end
+
+  if #selectCols == 0 then return 0 end
+
+  local sql = ('SELECT %s FROM `%s`'):format(table.concat(selectCols, ', '), playersTable)
+  local ok, rows = pcall(function() return MySQL.query.await(sql) end)
+  if not ok or not rows then return 0 end
+
+  local total = 0
+  for _, row in ipairs(rows) do
+    local cash = 0
+    local bank = 0
+
+    if columns.money and row.money then
+      local okDecode, decoded = pcall(function() return json.decode(row.money) end)
+      if okDecode and type(decoded) == 'table' then
+        cash = SafeNum(decoded.cash, cash)
+        bank = SafeNum(decoded.bank, bank)
+      end
+    end
+
+    if columns.cash then
+      cash = SafeNum(row.cash, cash)
+    end
+
+    if columns.bank then
+      bank = SafeNum(row.bank, bank)
+    end
+
+    total = total + cash + bank
+  end
+
+  return total
+end
+
+function DB.GetPlayerVehicles(citizenid)
+  if not HasMySQL() then return {} end
+  if not citizenid or citizenid == '' then return {} end
+
+  local dbCfg = GetDatabaseConfig()
+  local vehiclesCfg = dbCfg.Vehicles or {}
+
+  local tableName = vehiclesCfg.table or 'player_vehicles'
+  local ownerColumn = vehiclesCfg.ownerColumn or 'citizenid'
+  local plateColumn = vehiclesCfg.plateColumn or 'plate'
+  local modelColumn = vehiclesCfg.modelColumn or 'vehicle'
+  local valueColumn = vehiclesCfg.valueColumn or 'depotprice'
+
+  if not TableExists(tableName) then return {} end
+
+  local fallbackPrice = SafeNum(DBInt.Config and DBInt.Config.IPVA and DBInt.Config.IPVA.fallbackPrice, 50000)
+  local sql = ('SELECT `%s` AS plate, `%s` AS model, COALESCE(NULLIF(`%s`, 0), ?) AS price FROM `%s` WHERE `%s` = ?'):format(
+    plateColumn,
+    modelColumn,
+    valueColumn,
+    tableName,
+    ownerColumn
+  )
+
+  local ok, rows = pcall(function()
+    return MySQL.query.await(sql, { fallbackPrice, citizenid })
+  end)
+
+  if not ok or not rows then return {} end
+
+  for _, row in ipairs(rows) do
+    row.price = SafeNum(row.price, fallbackPrice)
+  end
+
+  return rows
+end
+
+function DB.GetPlayerProperties(citizenid)
+  if not HasMySQL() then return {} end
+  if not citizenid or citizenid == '' then return {} end
+
+  local dbCfg = GetDatabaseConfig()
+  local propertiesCfg = dbCfg.Properties or {}
+
+  local tableName = propertiesCfg.table or 'properties'
+  local ownerColumn = propertiesCfg.ownerColumn or 'owner_citizenid'
+  local priceColumn = propertiesCfg.priceColumn or 'price'
+  local nameColumn = propertiesCfg.nameColumn or 'label'
+
+  if not TableExists(tableName) then return {} end
+
+  local columns = LoadColumns(tableName)
+  local idColumn = (columns and columns.property_id) and 'property_id' or nil
+
+  local selectCols = {
+    ('`%s` AS label'):format(nameColumn),
+    ('COALESCE(`%s`, 0) AS price'):format(priceColumn),
+  }
+  if idColumn then
+    selectCols[#selectCols + 1] = ('`%s` AS id'):format(idColumn)
+  end
+
+  local sql = ('SELECT %s FROM `%s` WHERE `%s` = ?'):format(
+    table.concat(selectCols, ', '),
+    tableName,
+    ownerColumn
+  )
+
+  local ok, rows = pcall(function()
+    return MySQL.query.await(sql, { citizenid })
+  end)
+
+  if not ok or not rows then return {} end
+
+  for _, row in ipairs(rows) do
+    row.price = SafeNum(row.price, 0)
+  end
+
+  return rows
+end
+
+function DB.GetAllCompanies()
+  if not HasMySQL() then return {} end
+
+  local dbCfg = GetDatabaseConfig()
+  local sources = dbCfg.Societies or { 'management_funds', 'ps_banking_accounts' }
+  local companies = {}
+
+  for _, source in ipairs(sources) do
+    if source == 'management_funds' and TableExists('management_funds') then
+      local ok, rows = pcall(function()
+        return MySQL.query.await([[
+          SELECT job_name AS name, COALESCE(amount, 0) AS balance, type
+          FROM management_funds
+        ]])
+      end)
+
+      if ok and rows then
+        for _, row in ipairs(rows) do
+          if row and row.name then
+            companies[#companies + 1] = {
+              name = SafeStr(row.name, ''),
+              balance = SafeNum(row.balance, 0),
+              source = 'management_funds',
+              type = SafeStr(row.type, ''),
+            }
+          end
+        end
+      end
+    elseif source == 'ps_banking_accounts' and TableExists('ps_banking_accounts') then
+      local ok, rows = pcall(function()
+        return MySQL.query.await([[
+          SELECT holder AS name, COALESCE(balance, 0) AS balance
+          FROM ps_banking_accounts
+        ]])
+      end)
+
+      if ok and rows then
+        for _, row in ipairs(rows) do
+          if row and row.name then
+            companies[#companies + 1] = {
+              name = SafeStr(row.name, ''),
+              balance = SafeNum(row.balance, 0),
+              source = 'ps_banking_accounts',
+            }
+          end
+        end
+      end
+    end
+  end
+
+  return companies
+end
+
+function DB.GetTotalMoneySupply()
+  if not HasMySQL() then
+    return {
+      playerMoney = 0,
+      managementFunds = 0,
+      bankingFunds = 0,
+      companyMoney = 0,
+      total = 0,
+    }
+  end
+
+  local dbCfg = GetDatabaseConfig()
+  local playersTable = dbCfg.Players or 'players'
+
+  local playerMoney = GetPlayersMoneyTotal(playersTable)
+  local companies = DB.GetAllCompanies()
+
+  local managementFunds = 0
+  local bankingFunds = 0
+
+  for _, company in ipairs(companies) do
+    if company.source == 'management_funds' then
+      managementFunds = managementFunds + SafeNum(company.balance, 0)
+    elseif company.source == 'ps_banking_accounts' then
+      bankingFunds = bankingFunds + SafeNum(company.balance, 0)
+    end
+  end
+
+  local companyMoney = managementFunds + bankingFunds
+
+  return {
+    playerMoney = playerMoney,
+    managementFunds = managementFunds,
+    bankingFunds = bankingFunds,
+    companyMoney = companyMoney,
+    total = playerMoney + companyMoney,
+  }
+end
+
 -- ===== schema (sem information_schema)
 function DBInt.TableExists(tableName)
   if DBInt.State.schema.tables[tableName] ~= nil then

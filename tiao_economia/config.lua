@@ -7,6 +7,31 @@ Config.Debug = false
 Config.Locale = 'pt-BR'
 
 -- ============================================================
+-- BANCO DE DADOS (FONTE DA VERDADE)
+-- ============================================================
+Config.Database = {
+  Players = 'players',
+  Vehicles = {
+    table = 'player_vehicles',
+    ownerColumn = 'citizenid',
+    plateColumn = 'plate',
+    modelColumn = 'vehicle',
+    valueColumn = 'depotprice', -- Usar este valor para cálculo preciso do IPVA
+  },
+  Properties = {
+    table = 'properties', -- Prioridade ao ps-housing
+    ownerColumn = 'owner_citizenid',
+    priceColumn = 'price',
+    nameColumn = 'label',
+  },
+  -- O sistema deve varrer ambas as tabelas para encontrar TODAS as empresas ativas
+  Societies = {
+    'management_funds',
+    'ps_banking_accounts',
+  },
+}
+
+-- ============================================================
 -- IMPOSTOS
 -- ============================================================
 Config.TaxMultiplierDefault = 1.0
