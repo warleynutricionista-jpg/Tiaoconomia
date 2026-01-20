@@ -53,6 +53,11 @@ server_scripts {
   'server/rewards.lua',         -- Sistema de recompensas
   'server/discord.lua',         -- Discord webhooks
 
+  -- Melhorias v3.2 (Economia Ultra-Realista)
+  'server/economy_monitor.lua', -- Monitoramento PIB e circulação monetária
+  'server/monetary_policy.lua', -- Política monetária automática (SELIC, inflação)
+  'server/economic_events.lua', -- Eventos econômicos (crises, booms)
+
   -- Admin & Events
   'server/admin.lua',
   'server/events.lua',
@@ -203,4 +208,30 @@ exports {
 exports {
   'GetDBIntegrationStats',
   'ForceCheckSystem',
+}
+
+-- Economy Monitor (v3.2)
+exports {
+  'RegistrarTransacao',
+  'GetRelatorioEconomico',
+  'GetCirculacaoMonetaria',
+  'GetPIB',
+  'GetPIBPerCapita',
+  'GetVelocidadeCirculacao',
+}
+
+-- Monetary Policy (v3.2)
+exports {
+  'GetSELIC',
+  'GetInflacao',
+  'AjustarPrecoInflacao',
+  'GetRelatorioPolitica',
+  'AtualizarCategoriaIPC',
+}
+
+-- Economic Events (v3.2)
+exports {
+  'TriggerEconomicEvent',
+  'GetEventoAtivo',
+  'GetHistoricoEventos',
 }
