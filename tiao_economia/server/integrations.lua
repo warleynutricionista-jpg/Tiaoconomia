@@ -46,6 +46,20 @@ local function isStarted(res)
   return GetResourceState(res) == 'started'
 end
 
+local function getResourceState(res)
+  local state = GetResourceState(res)
+  if not state or state == '' then return 'missing' end
+  return state
+end
+
+local function listResourceStates(resources)
+  local out = {}
+  for _, res in ipairs(resources or {}) do
+    out[res] = getResourceState(res)
+  end
+  return out
+end
+
 --============================================================
 -- MySQL wrapper (oxmysql / mysql-async / MySQL.*)
 --============================================================
@@ -372,6 +386,62 @@ local function _playerAdd(p, account, amount, reason)
   if res == nil then return true end
   return res == true
 end
+
+local function GetIntegrationStatus()
+  local status = {
+    generatedAt = os.date('!%Y-%m-%d %H:%M:%S'),
+    framework = {
+      detected = DetectFramework(),
+      resources = listResourceStates({ 'qbx_core', 'qb-core', 'es_extended' }),
+    },
+    dependencies = listResourceStates({ 'ox_lib', 'oxmysql' }),
+    integrations = {
+      banking = {
+        enabled = cfg.Banking and cfg.Banking.Enabled ~= false,
+        resource = cfg.Banking and cfg.Banking.Resource or 'auto',
+        resources = listResourceStates({ 'ps-banking', 'qb-banking', 'qbx-banking' }),
+      },
+      dispatch = {
+        enabled = cfg.Dispatch and cfg.Dispatch.Enabled == true,
+        resource = cfg.Dispatch and cfg.Dispatch.Resource or 'ps-dispatch',
+        resources = listResourceStates({ 'ps-dispatch' }),
+      },
+      mdt = {
+        enabled = cfg.MDT and cfg.MDT.Enabled == true,
+        resource = cfg.MDT and cfg.MDT.Resource or 'ps-mdt',
+        resources = listResourceStates({ 'ps-mdt' }),
+      },
+      housing = {
+        enabled = cfg.RealEstate and cfg.RealEstate.Enabled == true,
+        resources = listResourceStates({ 'ps-housing', 'qb-houses', 'qbx-houses' }),
+      },
+      garages = {
+        enabled = cfg.Garages and cfg.Garages.Enabled == true,
+        resources = listResourceStates({ 'rhd_garage', 'qb-garage', 'qb-garages', 'qbx-garages' }),
+      },
+      dealership = {
+        enabled = true,
+        resources = listResourceStates({ 'rm-dealership', 'qb-vehicleshop', 'qbx-vehicleshop' }),
+      },
+      inventory = {
+        enabled = true,
+        resources = listResourceStates({ 'ox_inventory', 'ps-inventory', 'qb-inventory' }),
+      },
+    },
+    externalIntegrations = {
+      configured = (Config and (Config.ExternalIntegrations or (Config.Integrations and Config.Integrations.ExternalIntegrations))) ~= nil,
+    },
+    dbIntegrations = {
+      configured = (Config and (Config.DBIntegrations or (Config.Integrations and Config.Integrations.DBIntegrations))) ~= nil,
+      initialized = SE.DBIntegrations and SE.DBIntegrations.State and SE.DBIntegrations.State.initialized or false,
+      systems = SE.DBIntegrations and SE.DBIntegrations.Config and SE.DBIntegrations.Config.Systems or {},
+    },
+  }
+
+  return status
+end
+
+SE.Integrations.GetStatus = GetIntegrationStatus
 
 local function logTrailDebit(src, amount, account, reason, meta)
   if not (SE.MoneyTrail and SE.MoneyTrail.LogDebit) then return end
@@ -1828,6 +1898,15 @@ exports('InventoryGetItemCount', SE.Integrations.InventoryGetItemCount)
 exports('InventoryHasItem', SE.Integrations.InventoryHasItem)
 exports('InventoryCanCarryItem', SE.Integrations.InventoryCanCarryItem)
 exports('OpenStash', SE.Integrations.OpenStash)
+exports('GetIntegrationStatus', SE.Integrations.GetStatus)
+
+RegisterCommand('se:integrationstatus', function(source)
+  if source ~= 0 then return end
+  local payload = GetIntegrationStatus()
+  local encoded = (U and U.safeJsonEncode and U.safeJsonEncode(payload)) or (json and json.encode and json.encode(payload)) or tostring(payload)
+  print('^2[space_economy]^7 Integrações detectadas:')
+  print(encoded)
+end, true)
 
 -- extra: statement direto (se você quiser usar em outros módulos)
 exports('PsBankingAddStatementByCitizenId', PsBankingAddStatementByCitizenId)

@@ -268,6 +268,8 @@ Config.Permissions = {
 - `/taxas` - Abre painel de impostos (player)
 - `/economia` - Abre painel administrativo (admin) **[TECLA: F12]**
 - `/eco_testui` - Teste de UI (diagnóstico)
+- `se:integrationstatus` - Diagnóstico de integrações (console)
+- `se:checkintegrations` - Força verificação das integrações via DB (console)
 
 ### Keymappings ✅
 - **F7** - Abre painel de impostos
@@ -276,6 +278,8 @@ Config.Permissions = {
 
 **Arquivos:**
 - `client/commands.lua:30-48` - Comandos e keybindings
+- `server/integrations.lua:1836-1850` - Diagnóstico de integrações
+- `server/db_integrations.lua:742-769` - Verificação manual de integrações DB
 
 ---
 
@@ -288,10 +292,13 @@ Config.Permissions = {
 4. `space_economy_installments` - Parcelamentos
 5. `space_economy_loans` - Empréstimos
 6. `space_economy_credit_scores` - Scores de crédito
+7. `space_economy_processed_transactions` - Cache de transações integradas
+8. `space_economy_integration_config` - Status/config das integrações DB
 
 **Arquivos:**
 - `sql/schema.sql` - Schema básico
 - `sql/space_economy_v2.sql` - Schema completo v2
+- `sql/db_integrations.sql` - Schema integrações DB
 - `server/events.lua:22-38` - Auto-criação de tabela de logs
 
 ---
@@ -351,6 +358,9 @@ Config.Permissions = {
 - `TaxPropertyPurchase(src, propertyPrice)`
 - `TaxService(src, serviceAmount)`
 - `TaxShopPurchase(src, purchaseAmount)`
+
+### Diagnóstico de Integrações
+- `GetIntegrationStatus()` - Retorna status completo das integrações
 
 ### Reports (Relatórios)
 - `GetEconomyReport()`
