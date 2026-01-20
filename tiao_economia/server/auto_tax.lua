@@ -13,6 +13,14 @@ local function dbg(...)
   if U and U.dbg then U.dbg(...) else print('^3[auto_tax]^7', ...) end 
 end
 
+local function registerTransaction(category, amount, meta)
+  if SE
+    and SE.EconomyMonitor
+    and type(SE.EconomyMonitor.RegisterTransaction) == 'function' then
+    SE.EconomyMonitor.RegisterTransaction(category, amount, meta)
+  end
+end
+
 --============================================================
 -- HOOKS PARA SHOPS (qb-shops, ox_inventory, etc)
 --============================================================
@@ -54,6 +62,13 @@ local function hookShopPurchase(src, item, price, quantity)
       quantity = quantity
     })
   end
+
+  registerTransaction('compra_item', price, {
+    citizenid = cid,
+    item = item,
+    quantity = quantity,
+    total_price = price
+  })
   
   dbg(('ICMS sobre compra: %s | $%d (base: $%d)'):format(cid, taxAmount, price))
   
@@ -124,6 +139,13 @@ function SE.AutoTax.OnVehiclePurchase(src, vehicleData)
     
     B.Notify(src, ('IPVA lançado: $%d (vence em 30 dias)'):format(ipva), 'inform')
   end
+
+  registerTransaction('compra_veiculo', price, {
+    citizenid = cid,
+    vehicle_model = vehicleData.model,
+    vehicle_plate = vehicleData.plate,
+    total_price = price
+  })
   
   dbg(('IPVA lançado: %s | $%d (veículo: %s)'):format(cid, ipva, vehicleData.plate or '?'))
 end
@@ -231,6 +253,13 @@ function SE.AutoTax.OnPropertyPurchase(src, propertyData)
     
     B.Notify(src, ('IPTU lançado: $%d (vence em 30 dias)'):format(iptu), 'inform')
   end
+
+  registerTransaction('compra_imovel', price, {
+    citizenid = cid,
+    property_id = propertyData.id,
+    property_label = propertyData.label,
+    total_price = price
+  })
   
   dbg(('IPTU lançado: %s | $%d (propriedade: %s)'):format(cid, iptu, propertyData.label or '?'))
 end

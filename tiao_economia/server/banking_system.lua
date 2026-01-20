@@ -9,6 +9,14 @@ SE.BankingSystem = SE.BankingSystem or {}
 local U = SE.Util
 local BS = SE.BankingSystem
 
+local function registerTransaction(category, amount, meta)
+  if SE
+    and SE.EconomyMonitor
+    and type(SE.EconomyMonitor.RegisterTransaction) == 'function' then
+    SE.EconomyMonitor.RegisterTransaction(category, amount, meta)
+  end
+end
+
 --============================================================
 -- Produtos Bancários
 --============================================================
@@ -188,6 +196,12 @@ function BS.Invest(src, productId, amount)
     maturityDate and os.date('%Y-%m-%d %H:%M:%S', maturityDate) or nil
   })
 
+  registerTransaction('aplicacao_financeira', amount, {
+    citizenid = citizenid,
+    product_id = productId,
+    product_name = product.name
+  })
+
   TriggerClientEvent('ox_lib:notify', src, {
     type = 'success',
     title = 'Investimento Realizado',
@@ -299,6 +313,15 @@ function BS.Redeem(src, investmentId)
 
   -- Devolver dinheiro
   SE.Integrations.AddMoney(src, 'bank', totalAmount, 'Resgate de investimento')
+
+  registerTransaction('resgate_financeiro', totalAmount, {
+    citizenid = citizenid,
+    product_id = product.id,
+    investment_id = investmentId,
+    gross_yield = grossYield,
+    net_yield = netYield,
+    tax = tax
+  })
 
   TriggerClientEvent('ox_lib:notify', src, {
     type = 'success',
