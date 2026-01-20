@@ -11,6 +11,29 @@ local U = SE.Util
 
 local IS_SERVER = IsDuplicityVersion() == true
 
+local FrameworkDetected = nil
+
+local function isStarted(res)
+  local state = GetResourceState(res)
+  return state == 'started' or state == 'starting'
+end
+
+local function detectFramework()
+  if FrameworkDetected then return FrameworkDetected end
+
+  if isStarted('qbx_core') or (exports and exports.qbx_core) then
+    FrameworkDetected = 'qbx'
+  elseif rawget(_G, 'QBCore') or isStarted('qb-core') or (exports and exports['qb-core']) then
+    FrameworkDetected = 'qbcore'
+  elseif rawget(_G, 'ESX') or isStarted('es_extended') or (exports and exports['es_extended']) then
+    FrameworkDetected = 'esx'
+  end
+
+  FrameworkDetected = FrameworkDetected or 'unknown'
+  SE.Framework = FrameworkDetected
+  return FrameworkDetected
+end
+
 local BalanceCache = {
   ttl = 3,
   data = {},
@@ -54,6 +77,10 @@ end
 local QBCore = nil
 local function GetQBCore()
   if QBCore then return QBCore end
+  if rawget(_G, 'QBCore') then
+    QBCore = rawget(_G, 'QBCore')
+    return QBCore
+  end
   if exports and exports['qb-core'] then
     local ok, core = pcall(function()
       return exports['qb-core']:GetCoreObject()
@@ -63,31 +90,49 @@ local function GetQBCore()
   return QBCore
 end
 
+local ESX = nil
+local function GetESX()
+  if ESX then return ESX end
+  if rawget(_G, 'ESX') then
+    ESX = rawget(_G, 'ESX')
+    return ESX
+  end
+  if exports and exports['es_extended'] and exports['es_extended'].getSharedObject then
+    local ok, obj = pcall(function() return exports['es_extended']:getSharedObject() end)
+    if ok then ESX = obj end
+  end
+  return ESX
+end
+
 --============================================================
 -- Player getters
 --============================================================
 function B.IsQBX()
-  return exports and exports.qbx_core ~= nil
+  return detectFramework() == 'qbx'
 end
 
 function B.IsQBCore()
-  return exports and exports['qb-core'] ~= nil
+  return detectFramework() == 'qbcore'
 end
 
 function B.IsESX()
-  return exports and exports['es_extended'] ~= nil
+  return detectFramework() == 'esx'
 end
 
 function B.GetFrameworkName()
-  if B.IsQBX() then return 'qbx' end
-  if B.IsQBCore() then return 'qbcore' end
-  if B.IsESX() then return 'esx' end
-  return 'unknown'
+  return detectFramework()
 end
 
 function B.GetPlayer(src)
   src = tonumber(src)
   if not src or src <= 0 then return nil end
+
+  if B.IsESX() then
+    local esx = GetESX()
+    if esx and esx.GetPlayerFromId then
+      return esx.GetPlayerFromId(src)
+    end
+  end
 
   if exports and exports.qbx_core then
     return exports.qbx_core:GetPlayer(src)
@@ -137,6 +182,13 @@ function B.GetPlayerByCitizenId(citizenid)
 
   citizenid = tostring(citizenid or '')
   if citizenid == '' then return nil end
+
+  if B.IsESX() then
+    local esx = GetESX()
+    if esx and esx.GetPlayerFromIdentifier then
+      return esx.GetPlayerFromIdentifier(citizenid)
+    end
+  end
 
   local core = GetQBCore()
   if core and core.Functions and core.Functions.GetPlayerByCitizenId then
@@ -372,12 +424,83 @@ function B.GetBalance(src, account)
   return value
 end
 
+function B.GetPlayerMoney(src, account)
+  if not IS_SERVER then return B.GetBalance(src, account or 'bank') end
+
+  account = account or 'bank'
+  local fw = B.GetFrameworkName()
+
+  if fw == 'esx' then
+    local esx = GetESX()
+    if esx and esx.GetPlayerFromId then
+      local xPlayer = esx.GetPlayerFromId(tonumber(src))
+      if xPlayer and xPlayer.getAccount then
+        local acc = xPlayer.getAccount(account)
+        return toInt(acc and acc.money or 0, 0)
+      end
+    end
+  end
+
+  local p = B.GetPlayer(src)
+  if p then
+    if p.Functions and p.Functions.GetMoney then
+      return toInt(p.Functions.GetMoney(account), 0)
+    end
+    if p.GetMoney then
+      return toInt(p:GetMoney(account), 0)
+    end
+    if p.PlayerData and p.PlayerData.money then
+      return toInt(p.PlayerData.money[account] or 0, 0)
+    end
+  end
+
+  return B.GetBalance(src, account)
+end
+
 function B.GetBankBalance(src)
   return B.GetBalance(src, 'bank')
 end
 
 function B.GetCashBalance(src)
   return B.GetBalance(src, 'cash')
+end
+
+function B.GetJob(src)
+  local job = {
+    name = 'unemployed',
+    grade = 0,
+    onDuty = true,
+  }
+
+  if not IS_SERVER then return job end
+
+  local fw = B.GetFrameworkName()
+  if fw == 'esx' then
+    local esx = GetESX()
+    if esx and esx.GetPlayerFromId then
+      local xPlayer = esx.GetPlayerFromId(tonumber(src))
+      if xPlayer and xPlayer.job then
+        job.name = xPlayer.job.name or job.name
+        job.grade = tonumber(xPlayer.job.grade or xPlayer.job.grade_name or 0) or 0
+        job.onDuty = xPlayer.job.onduty ~= nil and xPlayer.job.onduty or true
+      end
+    end
+    return job
+  end
+
+  local pd = B.GetPlayerData(src)
+  local j = pd and pd.job or nil
+  if not j then return job end
+
+  job.name = j.name or job.name
+  if type(j.grade) == 'table' then
+    job.grade = tonumber(j.grade.level or j.grade.grade or 0) or 0
+  else
+    job.grade = tonumber(j.grade or 0) or 0
+  end
+  job.onDuty = j.onduty ~= nil and j.onduty or (j.onDuty ~= nil and j.onDuty or true)
+
+  return job
 end
 
 --============================================================
@@ -393,12 +516,28 @@ function B.Notify(src, msg, ntype, title, duration)
   title = title or 'Economia'
   duration = toInt(duration or 3500, 3500)
 
-  -- ox_lib notify (server -> client)
-  TriggerClientEvent('ox_lib:notify', src, {
-    title = title,
-    description = msg,
-    type = ntype,
-    duration = duration,
-    position = 'top'
-  })
+  if isStarted('ox_lib') then
+    TriggerClientEvent('ox_lib:notify', src, {
+      title = title,
+      description = msg,
+      type = ntype,
+      duration = duration,
+      position = 'top'
+    })
+    return
+  end
+
+  if B.IsQBCore() or B.IsQBX() then
+    TriggerClientEvent('QBCore:Notify', src, msg, ntype, duration)
+    return
+  end
+
+  if B.IsESX() then
+    TriggerClientEvent('esx:showNotification', src, msg)
+    return
+  end
+
+  TriggerClientEvent('space_economy:client_notify', src, msg, ntype, title, duration)
 end
+
+SE.Framework = detectFramework()

@@ -9,6 +9,10 @@ SE.MonetaryPolicy = SE.MonetaryPolicy or {}
 local U = SE.Util
 local MP = SE.MonetaryPolicy
 
+local MAX_INFLATION_SHIFT = 0.05
+local MAX_TAX_RATE = 0.40
+local MIN_TAX_RATE = 0.01
+
 --============================================================
 -- Estado da Política Monetária
 --============================================================
@@ -63,6 +67,7 @@ local PolicyState = {
     lastReason = nil,
   },
 
+  emergencyLock = false,
   lastUpdate = 0,
 }
 
@@ -227,6 +232,11 @@ function MP.ReviewAutonomy()
 
   if not (SE.EconomyMonitor and SE.EconomyMonitor.GetReport) then return end
 
+  if PolicyState.emergencyLock then
+    U.dbg('[Monetary Policy] Autonomia pausada: emergência ativa')
+    return
+  end
+
   if circuitBreakerActive() then
     U.dbg('[Monetary Policy] Autonomia pausada: circuito em cooldown')
     return
@@ -295,15 +305,29 @@ function MP.ReviewAutonomy()
     SE.Server.MarkDirty()
   end
 
+  local currentInflation = (SE.Server and SE.Server.GetInflationRate and SE.Server.GetInflationRate())
+    or (SE.State and SE.State.inflationRate) or 1.0
+  local currentTax = (SE.Server and SE.Server.GetTaxMultiplier and SE.Server.GetTaxMultiplier())
+    or (SE.State and SE.State.taxMultiplier) or 1.0
+
+  local inflationDiffHard = math.abs(curInflation - currentInflation)
+  if inflationDiffHard > MAX_INFLATION_SHIFT then
+    print('[Monetary Policy] ALERTA: Tentativa de ajuste econômico agressivo bloqueada')
+    return
+  end
+
+  if curTax > MAX_TAX_RATE or curTax < MIN_TAX_RATE then
+    print('[Monetary Policy] ALERTA: Tentativa de ajuste econômico agressivo bloqueada')
+    return
+  end
+
   -- Circuit breaker: validar mudanças antes de aplicar
   local cb = getCircuitConfig()
   local maxDelta = cb.MaxInflationDeltaPerHour or 0.05
   local maxTax = cb.MaxTaxMultiplier or 0.40
 
-  local inflationDiff = math.abs(curInflation - ((SE.Server and SE.Server.GetInflationRate and SE.Server.GetInflationRate())
-    or (SE.State and SE.State.inflationRate) or 1.0))
-  local taxDiff = math.abs(curTax - ((SE.Server and SE.Server.GetTaxMultiplier and SE.Server.GetTaxMultiplier())
-    or (SE.State and SE.State.taxMultiplier) or 1.0))
+  local inflationDiff = math.abs(curInflation - currentInflation)
+  local taxDiff = math.abs(curTax - currentTax)
 
   if inflationDiff > maxDelta then
     triggerCircuitBreaker(('Inflação excedeu limite: Δ=%.4f'):format(inflationDiff))
@@ -677,6 +701,35 @@ RegisterCommand('eco_ipc', function(source, args)
   else
     print('[IPC] Categoria inválida')
   end
+end, false)
+
+--============================================================
+-- Comando: Emergência Econômica (congela automações)
+--============================================================
+RegisterCommand('eco_emergencia', function(source, args)
+  local src = tonumber(source)
+
+  if src ~= 0 and SE.Admin and SE.Admin.IsAllowed then
+    if not SE.Admin.IsAllowed(src) then
+      if src ~= 0 then
+        TriggerClientEvent('ox_lib:notify', src, {
+          type = 'error',
+          description = 'Sem permissão'
+        })
+      end
+      return
+    end
+  end
+
+  local action = args[1]
+  if action == 'off' or action == '0' or action == 'false' then
+    PolicyState.emergencyLock = false
+    print('[Monetary Policy] Emergência desativada. Automações retomadas.')
+    return
+  end
+
+  PolicyState.emergencyLock = true
+  print('[Monetary Policy] Emergência ativada. Automações congeladas.')
 end, false)
 
 --============================================================
