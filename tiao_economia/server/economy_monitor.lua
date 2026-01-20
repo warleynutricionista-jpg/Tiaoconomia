@@ -190,6 +190,10 @@ function EM.CalculateMoneyCirculation()
   }
 end
 
+function EM.GetTotalCirculation()
+  return MonitorState.totalCirculation or 0
+end
+
 --============================================================
 -- Calcular PIB
 --============================================================
@@ -465,6 +469,7 @@ exports('GetEconomyReport', EM.GetReport)
 exports('GetPIB', function() return MonitorState.pib.total end)
 exports('GetPIBPerCapita', function() return MonitorState.pib.perCapita end)
 exports('GetMoneyCirculation', function() return MonitorState.totalCirculation end)
+exports('GetTotalCirculation', function() return MonitorState.totalCirculation end)
 exports('GetVelocity', function() return MonitorState.velocity end)
 
 print('^2[space_economy]^7 Economy Monitor loaded - Update interval: ' .. Config.UpdateInterval .. 'ms')

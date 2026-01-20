@@ -373,6 +373,16 @@ local function _playerAdd(p, account, amount, reason)
   return res == true
 end
 
+local function logTrailDebit(src, amount, account, reason, meta)
+  if not (SE.MoneyTrail and SE.MoneyTrail.LogDebit) then return end
+  SE.MoneyTrail.LogDebit(src, amount, account, reason, meta)
+end
+
+local function logTrailCredit(src, amount, account, reason, meta)
+  if not (SE.MoneyTrail and SE.MoneyTrail.LogCredit) then return end
+  SE.MoneyTrail.LogCredit(src, amount, account, reason, meta)
+end
+
 function SE.Integrations.GetBalance(src, account)
   src = tonumber(src)
   if not src or src <= 0 then return 0 end
@@ -426,6 +436,7 @@ function SE.Integrations.RemoveMoney(src, amount, account, reason)
       local cid = SE.Integrations.GetCitizenId(src)
       if cid then PsBankingAddStatementByCitizenId(cid, amount, ('-%s'):format(reason), false) end
     end
+    logTrailDebit(src, amount, account, reason, { account = account, reason = reason, source = 'bridge' })
     return true
   elseif r == false then
     -- continua nos fallbacks
@@ -438,6 +449,7 @@ function SE.Integrations.RemoveMoney(src, amount, account, reason)
       local cid = SE.Integrations.GetCitizenId(src)
       if cid then PsBankingAddStatementByCitizenId(cid, amount, ('-%s'):format(reason), false) end
     end
+    logTrailDebit(src, amount, account, reason, { account = account, reason = reason, source = 'player' })
     return true
   elseif rr == false then
     return false, 'remove_failed'
@@ -454,6 +466,7 @@ function SE.Integrations.RemoveMoney(src, amount, account, reason)
           local cid = SE.Integrations.GetCitizenId(src)
           if cid then PsBankingAddStatementByCitizenId(cid, amount, ('-%s'):format(reason), false) end
         end
+        logTrailDebit(src, amount, account, reason, { account = account, reason = reason, source = 'qbcore' })
         return true
       elseif rr2 == false then
         return false, 'remove_failed'
@@ -487,6 +500,7 @@ function SE.Integrations.AddMoney(src, amount, account, reason)
       local cid = SE.Integrations.GetCitizenId(src)
       if cid then PsBankingAddStatementByCitizenId(cid, amount, ('+%s'):format(reason), true) end
     end
+    logTrailCredit(src, amount, account, reason, { account = account, reason = reason, source = 'bridge' })
     return true
   elseif r == false then
     -- continua
@@ -499,6 +513,7 @@ function SE.Integrations.AddMoney(src, amount, account, reason)
       local cid = SE.Integrations.GetCitizenId(src)
       if cid then PsBankingAddStatementByCitizenId(cid, amount, ('+%s'):format(reason), true) end
     end
+    logTrailCredit(src, amount, account, reason, { account = account, reason = reason, source = 'player' })
     return true
   elseif rr == false then
     return false, 'add_failed'
@@ -514,6 +529,7 @@ function SE.Integrations.AddMoney(src, amount, account, reason)
           local cid = SE.Integrations.GetCitizenId(src)
           if cid then PsBankingAddStatementByCitizenId(cid, amount, ('+%s'):format(reason), true) end
         end
+        logTrailCredit(src, amount, account, reason, { account = account, reason = reason, source = 'qbcore' })
         return true
       elseif rr2 == false then
         return false, 'add_failed'
@@ -575,6 +591,15 @@ function SE.Integrations.BankingTransfer(fromSrc, toAccount, amount, reason)
     -- statement extra (society): se quiser, também loga em tabela do ps-banking
     -- (normalmente ps-banking já registra do lado da conta society)
     dbg(('ps-banking transfer OK: src=%d -> holder=%s amount=%d'):format(fromSrc, holder, amount))
+    if SE.MoneyTrail and SE.MoneyTrail.LogTransfer then
+      local fromCid = SE.Integrations.GetCitizenId(fromSrc)
+      SE.MoneyTrail.LogTransfer(fromCid or tostring(fromSrc), holder, amount, reason, {
+        from_src = fromSrc,
+        to_account = holder,
+        reason = reason,
+        source = 'ps-banking',
+      })
+    end
     return true
   end
 
@@ -592,7 +617,18 @@ function SE.Integrations.BankingTransfer(fromSrc, toAccount, amount, reason)
       end
       return false
     end)
-    if ok and res then return true end
+    if ok and res then
+      if SE.MoneyTrail and SE.MoneyTrail.LogTransfer then
+        local fromCid = SE.Integrations.GetCitizenId(fromSrc)
+        SE.MoneyTrail.LogTransfer(fromCid or tostring(fromSrc), tostring(toAccount), amount, reason, {
+          from_src = fromSrc,
+          to_account = tostring(toAccount),
+          reason = reason,
+          source = bankingRes,
+        })
+      end
+      return true
+    end
   end
 
   return false, 'no_banking_integration'

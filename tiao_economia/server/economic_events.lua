@@ -8,6 +8,7 @@ SE.EconomicEvents = SE.EconomicEvents or {}
 
 local U = SE.Util
 local EE = SE.EconomicEvents
+local EventConfig = (Config and Config.EconomicEvents) or {}
 
 --============================================================
 -- Estado dos Eventos
@@ -16,7 +17,181 @@ local EventState = {
   currentEvent = nil,
   eventEndTime = 0,
   history = {},
+  outcomeMode = (EventConfig.Outcome and EventConfig.Outcome.Mode) or 'auto',
+  selectedOutcome = nil,
 }
+
+--============================================================
+-- Desfechos (Outcomes)
+--============================================================
+local Outcomes = {
+  crisis = {
+    {
+      id = 'recuperacao_rapida',
+      name = 'Recuperação Rápida',
+      effects = {
+        inflation = -0.03,
+        unemployment = -0.02,
+        confidence = 10,
+      },
+    },
+    {
+      id = 'recuperacao_lenta',
+      name = 'Recuperação Lenta',
+      effects = {
+        unemployment = 0.02,
+        confidence = -5,
+      },
+    },
+    {
+      id = 'neutro',
+      name = 'Neutralização',
+      effects = {},
+    },
+  },
+  boom = {
+    {
+      id = 'pouso_suave',
+      name = 'Pouso Suave',
+      effects = {
+        inflation = -0.01,
+        confidence = 5,
+      },
+    },
+    {
+      id = 'superaquecimento',
+      name = 'Superaquecimento',
+      effects = {
+        inflation = 0.03,
+        selic = 0.01,
+        confidence = -5,
+      },
+    },
+    {
+      id = 'neutro',
+      name = 'Neutralização',
+      effects = {},
+    },
+  },
+  sector = {
+    {
+      id = 'normalizacao',
+      name = 'Normalização Setorial',
+      effects = {
+        inflation = -0.01,
+        confidence = 5,
+      },
+    },
+    {
+      id = 'pressao_inflacionaria',
+      name = 'Pressão Inflacionária',
+      effects = {
+        inflation = 0.02,
+        confidence = -3,
+      },
+    },
+    {
+      id = 'neutro',
+      name = 'Neutralização',
+      effects = {},
+    },
+  },
+  special = {
+    {
+      id = 'impacto_positivo',
+      name = 'Impacto Positivo',
+      effects = {
+        confidence = 10,
+        pib = 0.05,
+      },
+    },
+    {
+      id = 'impacto_negativo',
+      name = 'Impacto Negativo',
+      effects = {
+        confidence = -10,
+        pib = -0.03,
+      },
+    },
+    {
+      id = 'neutro',
+      name = 'Neutralização',
+      effects = {},
+    },
+  },
+}
+
+local function getOutcomeSet(event)
+  if event and type(event.outcomes) == 'table' then
+    return event.outcomes
+  end
+  return Outcomes[event and event.type or ''] or {}
+end
+
+local function findOutcomeById(event, outcomeId)
+  for _, outcome in ipairs(getOutcomeSet(event)) do
+    if outcome.id == outcomeId then
+      return outcome
+    end
+  end
+  return nil
+end
+
+local function pickAutoOutcome(event)
+  local inflation = 0
+  if exports and exports.tiao_economia and exports.tiao_economia.GetMonthlyInflation then
+    inflation = exports.tiao_economia:GetMonthlyInflation() or 0
+  elseif SE.Server and SE.Server.GetInflationRate then
+    inflation = SE.Server.GetInflationRate() - 1.0
+  end
+
+  local unemployment = 0.05
+  if exports and exports.tiao_economia and exports.tiao_economia.GetUnemploymentRate then
+    unemployment = exports.tiao_economia:GetUnemploymentRate() or unemployment
+  end
+
+  local treasury = (SE.Treasury and SE.Treasury.GetBalance and SE.Treasury.GetBalance()) or 0
+  local lowTreasury = (Config.Treasury and Config.Treasury.LowBalanceThreshold) or 100000
+
+  if event.type == 'crisis' then
+    if inflation <= 0.03 and unemployment <= 0.06 and treasury > lowTreasury then
+      return findOutcomeById(event, 'recuperacao_rapida')
+    end
+    return findOutcomeById(event, 'recuperacao_lenta')
+  end
+
+  if event.type == 'boom' then
+    if inflation >= 0.08 or treasury <= lowTreasury then
+      return findOutcomeById(event, 'superaquecimento')
+    end
+    return findOutcomeById(event, 'pouso_suave')
+  end
+
+  if inflation >= 0.06 then
+    return findOutcomeById(event, 'pressao_inflacionaria')
+  end
+
+  return findOutcomeById(event, 'normalizacao') or findOutcomeById(event, 'neutro')
+end
+
+local function resolveOutcome(event)
+  local mode = EventState.outcomeMode or (EventConfig.Outcome and EventConfig.Outcome.Mode) or 'auto'
+  if mode == 'none' then return nil, mode end
+
+  if mode == 'manual' then
+    if EventState.selectedOutcome then
+      return findOutcomeById(event, EventState.selectedOutcome), mode
+    end
+    local fallback = (EventConfig.Outcome and EventConfig.Outcome.Default) or 'neutro'
+    return findOutcomeById(event, fallback), mode
+  end
+
+  if mode == 'auto' then
+    return pickAutoOutcome(event), mode
+  end
+
+  return findOutcomeById(event, (EventConfig.Outcome and EventConfig.Outcome.Default) or 'neutro'), mode
+end
 
 --============================================================
 -- Catálogo de Eventos
@@ -279,6 +454,8 @@ function EE.TriggerEvent(eventId)
   -- Ativar evento
   EventState.currentEvent = event
   EventState.eventEndTime = os.time() + duration
+  EventState.outcomeMode = (EventConfig.Outcome and EventConfig.Outcome.Mode) or 'auto'
+  EventState.selectedOutcome = nil
 
   U.dbg(('[Economic Events] %s "%s" triggered (duration: %ds)'):format(
     event.icon,
@@ -287,7 +464,7 @@ function EE.TriggerEvent(eventId)
   ))
 
   -- Aplicar efeitos
-  EE.ApplyEffects(event.effects, true)
+  EE.ApplyEffects(event.effects, true, { event_id = event.id })
 
   -- Notificar todos os players
   for _, src in ipairs(GetPlayers()) do
@@ -308,6 +485,8 @@ function EE.TriggerEvent(eventId)
     name = event.name,
     startTime = os.time(),
     endTime = EventState.eventEndTime,
+    outcome = nil,
+    outcomeMode = EventState.outcomeMode,
   })
 
   -- Limitar histórico a 10
@@ -321,8 +500,9 @@ end
 --============================================================
 -- Aplicar Efeitos do Evento
 --============================================================
-function EE.ApplyEffects(effects, apply)
+function EE.ApplyEffects(effects, apply, context)
   local multiplier = apply and 1 or -1
+  context = context or {}
 
   -- PIB (via Economy Monitor)
   if effects.pib and SE.EconomyMonitor then
@@ -368,7 +548,11 @@ function EE.ApplyEffects(effects, apply)
   if effects.treasury_bonus and apply then
     local amount = effects.treasury_bonus
     if SE.Server and SE.Server.AddToVault then
-      SE.Server.AddToVault(amount, 'evento_economico')
+      SE.Server.AddToVault(amount, 'evento_economico', {
+        from_type = 'system',
+        to_type = 'treasury',
+        event_id = context.event_id,
+      })
       U.dbg(('[Economic Events] Treasury bonus: +$%d'):format(amount))
     end
   end
@@ -376,7 +560,11 @@ function EE.ApplyEffects(effects, apply)
   if effects.treasury_cost and apply then
     local amount = effects.treasury_cost
     if SE.Server and SE.Server.RemoveFromVault then
-      SE.Server.RemoveFromVault(amount, 'evento_economico')
+      SE.Server.RemoveFromVault(amount, 'evento_economico', {
+        from_type = 'treasury',
+        to_type = 'system',
+        event_id = context.event_id,
+      })
       U.dbg(('[Economic Events] Treasury cost: -$%d'):format(amount))
     end
   end
@@ -401,10 +589,17 @@ function EE.EndEvent()
 
   local event = EventState.currentEvent
 
+  local outcome, outcomeMode = resolveOutcome(event)
+
   U.dbg(('[Economic Events] %s "%s" ended'):format(event.icon, event.name))
 
   -- Reverter efeitos (parcialmente)
-  EE.ApplyEffects(event.effects, false)
+  EE.ApplyEffects(event.effects, false, { event_id = event.id })
+
+  if outcome then
+    EE.ApplyEffects(outcome.effects, true, { event_id = event.id, outcome_id = outcome.id })
+    U.dbg(('[Economic Events] Outcome "%s" aplicado (%s)'):format(outcome.id, outcomeMode))
+  end
 
   -- Notificar players
   for _, src in ipairs(GetPlayers()) do
@@ -422,6 +617,13 @@ function EE.EndEvent()
   -- Limpar evento
   EventState.currentEvent = nil
   EventState.eventEndTime = 0
+  EventState.selectedOutcome = nil
+
+  local last = EventState.history[#EventState.history]
+  if last and last.event == event.id and not last.outcome then
+    last.outcome = outcome and outcome.id or nil
+    last.outcomeMode = outcomeMode
+  end
 end
 
 --============================================================
@@ -459,16 +661,18 @@ RegisterCommand('eco_evento', function(source, args)
 
   local event = current.event
   local remaining = math.floor(current.timeRemaining / 60)
+  local outcomeInfo = EventState.selectedOutcome or EventState.outcomeMode or 'auto'
 
   print(string.format('\n%s %s', event.icon, event.name))
   print(event.description)
   print(string.format('Tempo restante: %d minutos\n', remaining))
+  print(string.format('Desfecho: %s\n', outcomeInfo))
 
   if src ~= 0 then
     TriggerClientEvent('ox_lib:notify', src, {
       type = 'info',
       title = event.icon .. ' ' .. event.name,
-      description = string.format('%s (%d min restantes)', event.description, remaining),
+      description = string.format('%s (%d min restantes) | Desfecho: %s', event.description, remaining, outcomeInfo),
       duration = 10000,
     })
   end
@@ -521,6 +725,76 @@ RegisterCommand('eco_trigger', function(source, args)
 end, false)
 
 --============================================================
+-- Comando: Definir Desfecho do Evento
+--============================================================
+RegisterCommand('eco_desfecho', function(source, args)
+  local src = tonumber(source)
+
+  if src ~= 0 and SE.Admin and SE.Admin.IsAllowed then
+    if not SE.Admin.IsAllowed(src) then
+      if src ~= 0 then
+        TriggerClientEvent('ox_lib:notify', src, {
+          type = 'error',
+          description = 'Sem permissão'
+        })
+      end
+      return
+    end
+  end
+
+  if not EventState.currentEvent then
+    if src ~= 0 then
+      TriggerClientEvent('ox_lib:notify', src, {
+        type = 'info',
+        description = 'Nenhum evento ativo para definir desfecho'
+      })
+    end
+    print('[Economic Events] Nenhum evento ativo para definir desfecho')
+    return
+  end
+
+  local modeOrId = args[1]
+  if not modeOrId then
+    print('Uso: /eco_desfecho <auto|manual|none|random|outcome_id>')
+    print('Outcomes disponíveis:')
+    for _, outcome in ipairs(getOutcomeSet(EventState.currentEvent)) do
+      print(string.format('  %s - %s', outcome.id, outcome.name))
+    end
+    return
+  end
+
+  modeOrId = tostring(modeOrId)
+  if modeOrId == 'auto' or modeOrId == 'manual' or modeOrId == 'none' then
+    EventState.outcomeMode = modeOrId
+    EventState.selectedOutcome = nil
+  elseif modeOrId == 'random' then
+    local outcomes = getOutcomeSet(EventState.currentEvent)
+    if #outcomes > 0 then
+      local choice = outcomes[math.random(1, #outcomes)]
+      EventState.outcomeMode = 'manual'
+      EventState.selectedOutcome = choice.id
+    end
+  else
+    local found = findOutcomeById(EventState.currentEvent, modeOrId)
+    if not found then
+      print('[Economic Events] Desfecho não encontrado: ' .. modeOrId)
+      return
+    end
+    EventState.outcomeMode = 'manual'
+    EventState.selectedOutcome = found.id
+  end
+
+  local status = EventState.selectedOutcome or EventState.outcomeMode
+  print(('[Economic Events] Desfecho definido: %s'):format(status))
+  if src ~= 0 then
+    TriggerClientEvent('ox_lib:notify', src, {
+      type = 'success',
+      description = ('Desfecho definido: %s'):format(status)
+    })
+  end
+end, false)
+
+--============================================================
 -- Comando: Histórico de Eventos
 --============================================================
 RegisterCommand('eco_historico', function(source, args)
@@ -541,6 +815,9 @@ RegisterCommand('eco_historico', function(source, args)
         math.floor(duration / 60),
         os.date('%H:%M', record.startTime)
       ))
+      if record.outcome then
+        print(string.format('   Desfecho: %s (%s)', record.outcome, record.outcomeMode or 'auto'))
+      end
     end
   end
 
@@ -562,15 +839,19 @@ CreateThread(function()
   Wait(30000)
 
   while true do
-    -- Verificar a cada 30 minutos
-    Wait(1800000)
+    local intervalMinutes = EventConfig.AutoIntervalMinutes or 30
+    local intervalMs = math.max(1, intervalMinutes) * 60000
+    -- Verificar no intervalo configurado
+    Wait(intervalMs)
 
     -- Verificar se evento terminou
     if EventState.currentEvent then
       if os.time() >= EventState.eventEndTime then
         EE.EndEvent()
       end
-    else
+    end
+
+    if EventConfig.AutoTrigger ~= false and not EventState.currentEvent then
       -- Tentar sortear novo evento
       local event = EE.RollRandomEvent()
       if event then
