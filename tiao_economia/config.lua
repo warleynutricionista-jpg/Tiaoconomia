@@ -153,6 +153,51 @@ Config.UBI = {
 }
 
 -- ============================================================
+-- ORGANIZAÇÕES (Empresas dos Players)
+-- ============================================================
+Config.Organizations = {
+  Enabled = true,
+
+  -- Criação
+  CreateCost = 50000,
+  MinNameLength = 3,
+  MaxNameLength = 32,
+  MinTagLength = 2,
+  MaxTagLength = 6,
+  MaxMembers = 25,
+
+  -- Custos base (preço de custo definido pela economia)
+  DefaultBaseCost = 100,
+  BaseCosts = {
+    -- ['item_name'] = 250,
+  },
+
+  -- Preços e logística
+  DefaultSettings = {
+    logistics = {
+      deliveryFeePercent = 2.5,
+      storageFeePercent = 0.5,
+      taxPercent = 1.5,
+    },
+    pricing = {
+      minMarkupPercent = 0,
+    },
+    governance = {
+      allowMemberPricing = false,
+    },
+  },
+
+  Roles = {
+    owner = { members = true, products = true, finance = true, logistics = true },
+    manager = { members = true, products = true, finance = false, logistics = true },
+    staff = { members = false, products = true, finance = false, logistics = false },
+  },
+
+  PurchaseAccount = 'bank',
+  SalesTaxPercent = 2.0,
+}
+
+-- ============================================================
 -- PERMISSÕES (Granular)
 -- ============================================================
 Config.Permissions = {

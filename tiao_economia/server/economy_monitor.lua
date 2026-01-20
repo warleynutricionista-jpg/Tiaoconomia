@@ -72,6 +72,7 @@ local Config = {
     'management_funds',
     'qb_management_funds',
     'qbx_management_funds',
+    { name = 'space_economy_organizations', column = 'balance' },
   },
 
   -- Categorias de transação para PIB
@@ -257,11 +258,19 @@ function EM.CalculateMoneyCirculation()
   -- Empresas/Sociedades (se tiver integração)
   local companyMoney = 0
   if MySQL then
-    for _, tableName in ipairs(Config.CompanyFundsTables or {}) do
-      if tableExists(tableName) then
+    for _, entry in ipairs(Config.CompanyFundsTables or {}) do
+      local tableName = entry
+      local columnName = 'amount'
+
+      if type(entry) == 'table' then
+        tableName = entry.name
+        columnName = entry.column or 'amount'
+      end
+
+      if tableName and tableExists(tableName) then
         local ok, result = pcall(function()
           return MySQL.scalar.await(
-            ('SELECT COALESCE(SUM(amount), 0) FROM %s'):format(tableName),
+            ('SELECT COALESCE(SUM(%s), 0) FROM %s'):format(columnName, tableName),
             {}
           )
         end)

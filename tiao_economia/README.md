@@ -92,6 +92,7 @@ Sistema econômico COMPLETO e ULTRA-REALISTA para servidores FiveM/QBCore, simul
 - 🆕 Mercado de Trabalho
 - 🆕 Salário Mínimo Dinâmico
 - 🆕 Taxa de Desemprego
+- 🆕 Organizações/Empresas de Players (catálogo, logística, estoque)
 
 ---
 
@@ -208,6 +209,11 @@ restart tiao_economia
 /eco_ajustar_salario        # Forçar ajuste de salário mínimo
 ```
 
+#### Organizações (Admin)
+```bash
+/org_admin_create <citizenid> <nome> <tag>
+```
+
 #### Sistemas Base (v3.1)
 ```bash
 /economia                   # Painel administrativo completo (NUI)
@@ -237,6 +243,19 @@ restart tiao_economia
 #### Stock Market
 ```bash
 /bolsa                              # Ver cotações
+```
+
+#### Organizações (Players)
+```bash
+/org_create <nome> <tag>
+/org_addmember <org_id> <citizenid> [role]
+/org_removemember <org_id> <citizenid>
+/org_setlogistica <org_id> <entrega%> <armazenagem%> <taxa%>
+/org_addproduct <org_id> <item> <quantidade> <preco> [label]
+/org_restock <org_id> <item> <quantidade>
+/org_setprice <org_id> <item> <preco>
+/org_buy <org_id> <item> [quantidade]
+/org_info <org_id>
 ```
 
 **Empresas listadas:**
