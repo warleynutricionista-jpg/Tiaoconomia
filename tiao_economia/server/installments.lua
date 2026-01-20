@@ -88,6 +88,14 @@ local function notify(src, msg, typ)
   end
 end
 
+local function registerTransaction(category, amount, meta)
+  if SE
+    and SE.EconomyMonitor
+    and type(SE.EconomyMonitor.RegisterTransaction) == 'function' then
+    SE.EconomyMonitor.RegisterTransaction(category, amount, meta)
+  end
+end
+
 local function hasMySQL()
   return MySQL
     and MySQL.query and MySQL.query.await
@@ -688,6 +696,13 @@ function Inst.PayNextInstallment(planId, src)
       citizenid = plan.citizenid
     })
   end
+
+  registerTransaction('pagamento_parcelamento', amount, {
+    plan_id = planId,
+    installment_id = nextInst.id,
+    debt_id = plan.debt_id,
+    citizenid = plan.citizenid
+  })
 
   if SE.Locks and type(SE.Locks.Release) == 'function' then
     SE.Locks.Release(lockKey, owner, true)

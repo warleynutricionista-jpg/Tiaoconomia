@@ -77,6 +77,14 @@ local function notify(src, msg, typ)
   end
 end
 
+local function registerTransaction(category, amount, meta)
+  if SE
+    and SE.EconomyMonitor
+    and type(SE.EconomyMonitor.RegisterTransaction) == 'function' then
+    SE.EconomyMonitor.RegisterTransaction(category, amount, meta)
+  end
+end
+
 local function getSourceByCitizen(citizenid)
   if type(B.GetSourceByCitizenId) == 'function' then
     return B.GetSourceByCitizenId(citizenid)
@@ -664,6 +672,12 @@ function Debts.ApplyPayment(debtId, citizenid, amountPaid, paymentType, meta)
       source = paymentType
     })
   end
+
+  registerTransaction('pagamento_divida', pay, {
+    debt_id = debtId,
+    citizenid = citizenid,
+    source = paymentType
+  })
 
   if SE.Locks and type(SE.Locks.Release) == 'function' then
     SE.Locks.Release(lockKey, owner, true)
