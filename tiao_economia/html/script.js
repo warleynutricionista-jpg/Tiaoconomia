@@ -125,6 +125,9 @@
     payment: { amount: 0, reason: '' },
     inputModal: { callback: null, type: 'text' },
     pendingRequests: 0,
+    dashboard: {
+      charts: {},
+    },
   };
 
   // ===========================
@@ -324,6 +327,10 @@
       $$('.nav-item').forEach((n) => n.classList.remove('is-active'));
       const navItem = $(`.nav-item[data-view="${viewName}"]`);
       if (navItem) navItem.classList.add('is-active');
+
+      if (viewName === 'admin-dashboard') {
+        Dashboard.request();
+      }
     },
   };
 
@@ -537,6 +544,164 @@
   };
 
   // ===========================
+  // DASHBOARD MODULE
+  // ===========================
+  const Dashboard = {
+    ensureCharts() {
+      if (typeof Chart === 'undefined') {
+        Notification.show('Chart.js não carregado.', 'error');
+        return;
+      }
+
+      const lineCanvas = $('#chart-pib-inflation');
+      if (lineCanvas && !State.dashboard.charts.timeline) {
+        State.dashboard.charts.timeline = new Chart(lineCanvas, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: 'PIB',
+                data: [],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                tension: 0.35,
+                fill: true,
+                yAxisID: 'y',
+              },
+              {
+                label: 'Inflação (%)',
+                data: [],
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                tension: 0.35,
+                fill: true,
+                yAxisID: 'y1',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { color: '#9ca3af' },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+              },
+              y1: {
+                beginAtZero: true,
+                position: 'right',
+                ticks: { color: '#9ca3af' },
+                grid: { display: false },
+              },
+              x: {
+                ticks: { color: '#9ca3af' },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+              },
+            },
+            plugins: {
+              legend: { labels: { color: '#e5e7eb' } },
+            },
+          },
+        });
+      }
+
+      const revenueCanvas = $('#chart-revenue');
+      if (revenueCanvas && !State.dashboard.charts.revenue) {
+        State.dashboard.charts.revenue = new Chart(revenueCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: [],
+            datasets: [
+              {
+                data: [],
+                backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#6b7280'],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#e5e7eb' } },
+            },
+          },
+        });
+      }
+
+      const sectorsCanvas = $('#chart-sectors');
+      if (sectorsCanvas && !State.dashboard.charts.sectors) {
+        State.dashboard.charts.sectors = new Chart(sectorsCanvas, {
+          type: 'bar',
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: 'Volume',
+                data: [],
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { color: '#9ca3af' },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+              },
+              x: {
+                ticks: { color: '#9ca3af' },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+              },
+            },
+            plugins: {
+              legend: { labels: { color: '#e5e7eb' } },
+            },
+          },
+        });
+      }
+    },
+
+    update(payload = {}) {
+      this.ensureCharts();
+
+      const timeline = payload.timeline || {};
+      const revenue = payload.revenue || {};
+      const sectors = payload.sectors || {};
+
+      const timelineChart = State.dashboard.charts.timeline;
+      if (timelineChart) {
+        timelineChart.data.labels = timeline.labels || [];
+        timelineChart.data.datasets[0].data = timeline.pib || [];
+        timelineChart.data.datasets[1].data = timeline.inflation || [];
+        timelineChart.update();
+      }
+
+      const revenueChart = State.dashboard.charts.revenue;
+      if (revenueChart) {
+        revenueChart.data.labels = revenue.labels || [];
+        revenueChart.data.datasets[0].data = revenue.values || [];
+        revenueChart.update();
+      }
+
+      const sectorsChart = State.dashboard.charts.sectors;
+      if (sectorsChart) {
+        sectorsChart.data.labels = sectors.labels || [];
+        sectorsChart.data.datasets[0].data = sectors.values || [];
+        sectorsChart.update();
+      }
+    },
+
+    request() {
+      Admin.requestData('admin_dashboard');
+    },
+  };
+
+  // ===========================
   // LOANS MODULE
   // ===========================
   const Loans = {
@@ -684,6 +849,7 @@
   const Actions = {
     // Admin actions
     'refresh-admin'() { Admin.requestData('admin_state'); },
+    'refresh-dashboard'() { Dashboard.request(); },
     'reset-settings'() {
       if (confirm('Restaurar configurações padrão?')) {
         UI.setDirty(true);
@@ -752,6 +918,11 @@
 
     // Logs
     'refresh-logs'() { Admin.requestData('admin_logs', { limit: 100 }); },
+
+    // COPOM quick actions
+    'copom-raise'() { Admin.requestData('admin_copom_action', { action: 'raise' }); },
+    'copom-hold'() { Admin.requestData('admin_copom_action', { action: 'hold' }); },
+    'copom-lower'() { Admin.requestData('admin_copom_action', { action: 'lower' }); },
 
     // Payment modal
     'confirm-payment'() {
@@ -941,12 +1112,19 @@
 
         if (key === 'admin_state') {
           Admin.applyState(d || {});
+        } else if (key === 'admin_dashboard') {
+          Dashboard.update((d && d.dashboard) || {});
         } else if (key === 'admin_logs') {
           Logs.render((d && d.logs) || []);
         } else if (key === 'debts_active') {
           Debts.showList(d || []);
         } else if (key === 'specific_debt' || key === 'debt_specific') {
           Debts.showDetail(d || {});
+        } else if (key === 'admin_copom_action') {
+          const result = d && d.result;
+          if (result) {
+            Notification.show(`COPOM: ${result.decision} para ${formatDecimal((result.selic || 0) * 100, 2)}%`, 'success');
+          }
         } else if (key === 'loans_stats') {
           const stats = d || {};
           setElementText($('#loans-total'), formatMoney(stats.totalActive || 0));

@@ -65,6 +65,7 @@ server_scripts {
   'server/banking_system.lua',   -- Produtos bancários
   'server/money_laundering.lua', -- Lavagem oficial
   'server/labor_market.lua',     -- Salário mínimo, desemprego
+  'server/hooks.lua',            -- Hooks universais de transação
 
   -- Admin & Events
   'server/admin.lua',
@@ -78,6 +79,7 @@ client_scripts {
   'client/init.lua',
   'client/nui.lua',
   'client/commands.lua',
+  'client/menu.lua',
 }
 
 -- ============================================================

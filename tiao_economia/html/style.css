@@ -918,6 +918,23 @@ tbody tr:hover {
   z-index: 1;
 }
 
+/* -----------------------------
+   CHART GRID
+------------------------------*/
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.chart-card {
+  padding: var(--space-5);
+}
+
+.chart-card canvas {
+  width: 100% !important;
+}
+
 .dashboard-icon {
   font-size: 2.5rem;
   margin-bottom: var(--space-3);

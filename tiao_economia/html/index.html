@@ -42,6 +42,10 @@
               <span class="nav-icon">📊</span>
               <span>Visão Geral</span>
             </button>
+            <button class="nav-item" data-view="admin-dashboard">
+              <span class="nav-icon">📈</span>
+              <span>Admin Dashboard</span>
+            </button>
             <button class="nav-item" data-view="controls">
               <span class="nav-icon">⚙️</span>
               <span>Controles</span>
@@ -125,6 +129,44 @@
               <div class="dashboard-card" data-action="quick-debts">
                 <div class="dashboard-icon">📋</div>
                 <div class="dashboard-label">Ver Dívidas</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: ADMIN DASHBOARD -->
+          <div class="view" data-view="admin-dashboard">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Admin Dashboard</h2>
+                <button class="btn btn-secondary btn-sm" data-action="refresh-dashboard">Atualizar</button>
+              </div>
+
+              <div class="chart-grid">
+                <div class="panel chart-card">
+                  <h3 class="panel-title">Linha do Tempo: PIB x Inflação (7 dias)</h3>
+                  <canvas id="chart-pib-inflation" height="220"></canvas>
+                </div>
+
+                <div class="panel chart-card">
+                  <h3 class="panel-title">Composição da Arrecadação (30 dias)</h3>
+                  <canvas id="chart-revenue" height="220"></canvas>
+                </div>
+
+                <div class="panel chart-card">
+                  <h3 class="panel-title">Top 10 Setores Aquecidos</h3>
+                  <canvas id="chart-sectors" height="220"></canvas>
+                </div>
+              </div>
+
+              <div class="panel mt-6">
+                <div class="panel-header">
+                  <h2 class="panel-title">Controle Rápido - COPOM</h2>
+                </div>
+                <div class="dashboard-grid">
+                  <button class="btn btn-danger" data-action="copom-raise">Aumentar Juros (+0.25%)</button>
+                  <button class="btn btn-secondary" data-action="copom-hold">Manter</button>
+                  <button class="btn btn-success" data-action="copom-lower">Baixar Juros (-0.25%)</button>
+                </div>
               </div>
             </div>
           </div>
@@ -527,6 +569,7 @@
 
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

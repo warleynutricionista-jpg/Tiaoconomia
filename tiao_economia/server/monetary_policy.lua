@@ -57,6 +57,12 @@ local PolicyState = {
     growth = 0.0,              -- % de crescimento
   },
 
+  circuitBreaker = {
+    cooldownUntil = 0,
+    lastTriggeredAt = 0,
+    lastReason = nil,
+  },
+
   lastUpdate = 0,
 }
 
@@ -91,6 +97,28 @@ local function ensurePolicySettings()
   SE.State.settings.monetaryPolicy = type(SE.State.settings.monetaryPolicy) == 'table'
     and SE.State.settings.monetaryPolicy or {}
   return SE.State.settings.monetaryPolicy
+end
+
+local function getCircuitConfig()
+  local security = (Config and Config.Security) or {}
+  return security.CircuitBreaker or {}
+end
+
+local function triggerCircuitBreaker(reason)
+  local cb = getCircuitConfig()
+  local cooldownHours = cb.CooldownHours or 6
+  local now = os.time()
+
+  PolicyState.circuitBreaker.cooldownUntil = now + (cooldownHours * 3600)
+  PolicyState.circuitBreaker.lastTriggeredAt = now
+  PolicyState.circuitBreaker.lastReason = reason
+
+  print(('[Monetary Policy] CIRCUIT BREAKER ACTIVATED: %s'):format(reason or 'limite excedido'))
+end
+
+local function circuitBreakerActive()
+  local now = os.time()
+  return (PolicyState.circuitBreaker.cooldownUntil or 0) > now
 end
 
 --============================================================
@@ -199,6 +227,11 @@ function MP.ReviewAutonomy()
 
   if not (SE.EconomyMonitor and SE.EconomyMonitor.GetReport) then return end
 
+  if circuitBreakerActive() then
+    U.dbg('[Monetary Policy] Autonomia pausada: circuito em cooldown')
+    return
+  end
+
   local report = SE.EconomyMonitor.GetReport()
   local velocity = (report.indicators and report.indicators.velocity) or 0
   local pib = (report.pib and report.pib.total) or 0
@@ -262,6 +295,31 @@ function MP.ReviewAutonomy()
     SE.Server.MarkDirty()
   end
 
+  -- Circuit breaker: validar mudanças antes de aplicar
+  local cb = getCircuitConfig()
+  local maxDelta = cb.MaxInflationDeltaPerHour or 0.05
+  local maxTax = cb.MaxTaxMultiplier or 0.40
+
+  local inflationDiff = math.abs(curInflation - ((SE.Server and SE.Server.GetInflationRate and SE.Server.GetInflationRate())
+    or (SE.State and SE.State.inflationRate) or 1.0))
+  local taxDiff = math.abs(curTax - ((SE.Server and SE.Server.GetTaxMultiplier and SE.Server.GetTaxMultiplier())
+    or (SE.State and SE.State.taxMultiplier) or 1.0))
+
+  if inflationDiff > maxDelta then
+    triggerCircuitBreaker(('Inflação excedeu limite: Δ=%.4f'):format(inflationDiff))
+    return
+  end
+
+  if curTax > maxTax then
+    triggerCircuitBreaker(('Taxa excedeu limite absoluto: %.4f'):format(curTax))
+    return
+  end
+
+  if taxDiff > maxDelta then
+    triggerCircuitBreaker(('Taxa excedeu limite de variação: Δ=%.4f'):format(taxDiff))
+    return
+  end
+
   if SE.Server and SE.Server.SetInflationRate then
     SE.Server.SetInflationRate(curInflation)
   end
@@ -293,11 +351,13 @@ function MP.COPOMMeeting()
   local newSELIC = currentSELIC
   local decision = 'MANTER'
   local justification = ''
+  local cb = getCircuitConfig()
+  local maxSelic = cb.MaxSelicMonthly or Config.SELIC.Max
 
   -- Lógica de decisão
   if currentInflation > (target + tolerance) then
     -- Inflação ACIMA da meta → SUBIR SELIC
-    newSELIC = math.min(currentSELIC + Config.SELIC.AdjustStep, Config.SELIC.Max)
+    newSELIC = math.min(currentSELIC + Config.SELIC.AdjustStep, Config.SELIC.Max, maxSelic)
     decision = 'SUBIR'
     justification = string.format(
       'Inflação em %.1f%% (meta: %.1f%%). Ajuste preventivo.',
@@ -369,6 +429,49 @@ function MP.COPOMMeeting()
     decision = decision,
     selic = newSELIC,
     justification = justification,
+  }
+end
+
+--============================================================
+-- Ajuste Manual do COPOM (Admin)
+--============================================================
+function MP.ManualCopomAction(action)
+  local cb = getCircuitConfig()
+  local maxSelic = cb.MaxSelicMonthly or Config.SELIC.Max
+  local currentSELIC = PolicyState.selic
+  local newSELIC = currentSELIC
+  local decision = 'MANTER'
+
+  if action == 'raise' then
+    newSELIC = math.min(currentSELIC + Config.SELIC.AdjustStep, Config.SELIC.Max, maxSelic)
+    decision = 'SUBIR'
+  elseif action == 'lower' then
+    newSELIC = math.max(currentSELIC - Config.SELIC.AdjustStep, Config.SELIC.Min)
+    decision = 'BAIXAR'
+  end
+
+  PolicyState.selic = newSELIC
+  PolicyState.copom.lastMeeting = os.time()
+  PolicyState.copom.lastDecision = decision
+  PolicyState.copom.justification = 'Ajuste manual via painel'
+
+  table.insert(PolicyState.selicHistory, {
+    timestamp = PolicyState.copom.lastMeeting,
+    selic = newSELIC,
+    decision = decision,
+    inflation = PolicyState.inflation.annual,
+  })
+
+  if #PolicyState.selicHistory > 100 then
+    table.remove(PolicyState.selicHistory, 1)
+  end
+
+  U.dbg(('[Monetary Policy] Manual COPOM: %s SELIC %.2f%%'):format(decision, newSELIC * 100))
+
+  return {
+    decision = decision,
+    selic = newSELIC,
+    justification = PolicyState.copom.justification,
   }
 end
 
