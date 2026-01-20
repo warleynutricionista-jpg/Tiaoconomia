@@ -2,9 +2,9 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'space_economy (QBOX Advanced v3.1)'
-description 'Sistema econômico completo: impostos, dívidas, parcelamento, crédito, empréstimos, taxação automática + melhorias v3.1'
-version '3.1.0'
+author 'space_economy (QBOX Advanced v4.0)'
+description 'Sistema econômico ultra-realista: PIB, SELIC, Bolsa de Valores, Banking, Mercado de Trabalho, Eventos Econômicos + v3.1'
+version '4.0.0'
 
 -- ============================================================
 -- SHARED (Client + Server)
@@ -52,6 +52,14 @@ server_scripts {
   'server/audit.lua',           -- Sistema de auditoria
   'server/rewards.lua',         -- Sistema de recompensas
   'server/discord.lua',         -- Discord webhooks
+
+  -- Sistemas Econômicos Avançados v4.0
+  'server/economy_monitor.lua',  -- PIB, Circulação Monetária
+  'server/monetary_policy.lua',  -- SELIC, Inflação, IPC, COPOM
+  'server/economic_events.lua',  -- Eventos econômicos dinâmicos
+  'server/stock_market.lua',     -- Bolsa de valores
+  'server/banking_system.lua',   -- Produtos bancários
+  'server/labor_market.lua',     -- Salário mínimo, desemprego
 
   -- Admin & Events
   'server/admin.lua',
@@ -203,4 +211,56 @@ exports {
 exports {
   'GetDBIntegrationStats',
   'ForceCheckSystem',
+}
+
+-- Economy Monitor (v4.0)
+exports {
+  'RegisterTransaction',
+  'GetEconomyReport',
+  'GetPIB',
+  'GetPIBPerCapita',
+  'GetMoneyCirculation',
+  'GetVelocity',
+}
+
+-- Monetary Policy (v4.0)
+exports {
+  'GetSELIC',
+  'GetInflation',
+  'GetMonthlyInflation',
+  'AdjustPriceForInflation',
+  'GetMonetaryPolicyReport',
+  'AdjustIPCCategory',
+  'ForceCOPOMMeeting',
+}
+
+-- Economic Events (v4.0)
+exports {
+  'TriggerEconomicEvent',
+  'GetCurrentEvent',
+  'GetEventHistory',
+}
+
+-- Stock Market (v4.0)
+exports {
+  'BuyStock',
+  'SellStock',
+  'GetPortfolio',
+  'GetStockQuotes',
+}
+
+-- Banking System (v4.0)
+exports {
+  'Invest',
+  'RedeemInvestment',
+  'GetInvestments',
+}
+
+-- Labor Market (v4.0)
+exports {
+  'GetMinimumWage',
+  'GetUnemploymentRate',
+  'GetSectorMinSalary',
+  'GetLaborMarketReport',
+  'ForceWageAdjustment',
 }
