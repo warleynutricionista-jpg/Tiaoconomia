@@ -8,6 +8,7 @@ SE.AutoTax = SE.AutoTax or {}
 local U = SE.Util
 local B = SE.Bridge
 local cfg = Config.Integrations or {}
+local dbCfg = Config.Database or {}
 
 local function dbg(...) 
   if U and U.dbg then U.dbg(...) else print('^3[auto_tax]^7', ...) end 
@@ -21,10 +22,11 @@ local function registerTransaction(category, amount, meta)
   end
 end
 
-local function countAssets(tableName, citizenid)
-  if not MySQL or not citizenid or citizenid == '' then return 0 end
+local function countAssets(tableName, ownerColumn, citizenid)
+  if not MySQL or not citizenid or citizenid == '' or not tableName then return 0 end
+  local col = ownerColumn or 'citizenid'
   local ok, result = pcall(function()
-    return MySQL.scalar.await(('SELECT COUNT(*) FROM %s WHERE citizenid = ?'):format(tableName), { citizenid })
+    return MySQL.scalar.await(('SELECT COUNT(*) FROM `%s` WHERE `%s` = ?'):format(tableName, col), { citizenid })
   end)
   if not ok then return 0 end
   return U.toInt(result, 0)
@@ -63,6 +65,18 @@ local function parseDateTime(value)
   return nil
 end
 
+local function getVehicleConfig()
+  return dbCfg.Vehicles or {}
+end
+
+local function getPropertyConfig()
+  return dbCfg.Properties or {}
+end
+
+local function getVehicleFallbackPrice()
+  return U.toInt((Config.DBIntegrations and Config.DBIntegrations.IPVA and Config.DBIntegrations.IPVA.fallbackPrice), 50000)
+end
+
 local vehicleIdleColumn = nil
 local function getVehicleIdleColumn()
   if vehicleIdleColumn ~= nil then return vehicleIdleColumn or nil end
@@ -72,7 +86,9 @@ local function getVehicleIdleColumn()
   end
 
   local ok, cols = pcall(function()
-    return MySQL.query.await('SHOW COLUMNS FROM player_vehicles')
+    local vehiclesCfg = getVehicleConfig()
+    local tableName = vehiclesCfg.table or 'player_vehicles'
+    return MySQL.query.await(('SHOW COLUMNS FROM `%s`'):format(tableName))
   end)
 
   if not ok or not cols then
@@ -201,7 +217,20 @@ local function calculateIPVA(vehiclePrice)
   if not taxCfg then return 0 end
   
   local rate = taxCfg.percent or 1.5
-  return math.floor(vehiclePrice * (rate / 100))
+  local inflationMultiplier = 1.0
+
+  if SE.MonetaryPolicy and SE.MonetaryPolicy.GetReport then
+    local report = SE.MonetaryPolicy.GetReport()
+    if report and report.inflation then
+      inflationMultiplier = 1 + U.toNumber(report.inflation.accumulated, 0)
+    end
+  elseif SE.State and SE.State.inflationRate then
+    inflationMultiplier = U.toNumber(SE.State.inflationRate, 1.0)
+  elseif Config.Inflation and Config.Inflation.DefaultRate then
+    inflationMultiplier = U.toNumber(Config.Inflation.DefaultRate, 1.0)
+  end
+
+  return math.floor(vehiclePrice * (rate / 100) * inflationMultiplier)
 end
 
 -- Hook para quando player compra veículo
@@ -212,12 +241,24 @@ function SE.AutoTax.OnVehiclePurchase(src, vehicleData)
   if not cid then return end
   
   local price = U.toInt(vehicleData.price, 0)
+  if price <= 0 and SE.DB and SE.DB.GetPlayerVehicles then
+    local vehicles = SE.DB.GetPlayerVehicles(cid)
+    for _, v in ipairs(vehicles) do
+      if v.plate and vehicleData.plate and v.plate == vehicleData.plate then
+        price = U.toInt(v.price, 0)
+        break
+      end
+    end
+  end
   if price <= 0 then return end
   
   local ipva = calculateIPVA(price)
   if ipva <= 0 then return end
 
-  local vehicleCount = countAssets('player_vehicles', cid)
+  local vehicleCfg = getVehicleConfig()
+  local vehicleTable = vehicleCfg.table or 'player_vehicles'
+  local vehicleOwner = vehicleCfg.ownerColumn or 'citizenid'
+  local vehicleCount = countAssets(vehicleTable, vehicleOwner, cid)
   ipva = applyAssetMultiplier(ipva, vehicleCount + 1, Config.AssetTax and Config.AssetTax.VehicleMultiplier)
   
   -- Cria dívida de IPVA (vence em 30 dias)
@@ -266,22 +307,36 @@ if cfg.Garages and cfg.Garages.AutoIPVA then
       -- Requer tabela player_vehicles com colunas: citizenid, vehicle, plate, price, last_ipva_at
       
       local idleCol = getVehicleIdleColumn()
-      local selectCols = 'citizenid, vehicle, plate, COALESCE(price, 50000) as price'
+      local vehicleCfg = getVehicleConfig()
+      local tableName = vehicleCfg.table or 'player_vehicles'
+      local ownerColumn = vehicleCfg.ownerColumn or 'citizenid'
+      local modelColumn = vehicleCfg.modelColumn or 'vehicle'
+      local plateColumn = vehicleCfg.plateColumn or 'plate'
+      local valueColumn = vehicleCfg.valueColumn or 'depotprice'
+      local fallbackPrice = getVehicleFallbackPrice()
+
+      local selectCols = ('`%s` as citizenid, `%s` as vehicle, `%s` as plate, COALESCE(NULLIF(`%s`, 0), %d) as price'):format(
+        ownerColumn,
+        modelColumn,
+        plateColumn,
+        valueColumn,
+        fallbackPrice
+      )
       if idleCol then
         selectCols = ('%s, `%s` as last_idle_at'):format(selectCols, idleCol)
       end
 
       local vehicles = MySQL.query.await(([[
         SELECT %s
-        FROM player_vehicles
+        FROM `%s`
         WHERE (last_ipva_at IS NULL OR last_ipva_at < DATE_SUB(NOW(), INTERVAL 365 DAY))
         LIMIT 100
-      ]]):format(selectCols))
+      ]]):format(selectCols, tableName))
       
       if vehicles then
         for _, v in ipairs(vehicles) do
-          local ipva = calculateIPVA(U.toInt(v.price, 50000))
-          local vehicleCount = countAssets('player_vehicles', v.citizenid)
+          local ipva = calculateIPVA(U.toInt(v.price, fallbackPrice))
+          local vehicleCount = countAssets(tableName, ownerColumn, v.citizenid)
           ipva = applyAssetMultiplier(ipva, vehicleCount, Config.AssetTax and Config.AssetTax.VehicleMultiplier)
 
           local idleApplied = false
@@ -314,11 +369,11 @@ if cfg.Garages and cfg.Garages.AutoIPVA then
               })
             
             -- Atualiza última cobrança
-            MySQL.update.await([[
-              UPDATE player_vehicles
+            MySQL.update.await(([[
+              UPDATE `%s`
               SET last_ipva_at = NOW()
-              WHERE plate = ?
-            ]], {v.plate})
+              WHERE `%s` = ?
+            ]]):format(tableName, plateColumn), { v.plate })
             
             dbg(('IPVA anual: %s | $%d (placa: %s)'):format(v.citizenid, ipva, v.plate))
           end
@@ -356,12 +411,24 @@ function SE.AutoTax.OnPropertyPurchase(src, propertyData)
   if not cid then return end
   
   local price = U.toInt(propertyData.price, 0)
+  if price <= 0 and SE.DB and SE.DB.GetPlayerProperties then
+    local properties = SE.DB.GetPlayerProperties(cid)
+    for _, property in ipairs(properties) do
+      if property.id and propertyData.id and tostring(property.id) == tostring(propertyData.id) then
+        price = U.toInt(property.price, 0)
+        break
+      end
+    end
+  end
   if price <= 0 then return end
   
   local iptu = calculateIPTU(price)
   if iptu <= 0 then return end
 
-  local propertyCount = countAssets('player_houses', cid)
+  local propertyCfg = getPropertyConfig()
+  local propertyTable = propertyCfg.table or 'player_houses'
+  local propertyOwner = propertyCfg.ownerColumn or 'citizenid'
+  local propertyCount = countAssets(propertyTable, propertyOwner, cid)
   iptu = applyAssetMultiplier(iptu, propertyCount + 1, Config.AssetTax and Config.AssetTax.PropertyMultiplier)
   
   -- Cria dívida de IPTU (vence em 30 dias)
@@ -412,19 +479,24 @@ if cfg.RealEstate and cfg.RealEstate.AutoIPTU then
       
       -- Busca propriedades que precisam pagar IPTU
       -- Requer tabela player_houses/properties com: citizenid, label, price, last_iptu_at
-      
-      local properties = MySQL.query.await([[
-        SELECT citizenid, label, 
-               COALESCE(price, 100000) as price
-        FROM player_houses
+      local propertyCfg = getPropertyConfig()
+      local propertyTable = propertyCfg.table or 'player_houses'
+      local ownerColumn = propertyCfg.ownerColumn or 'citizenid'
+      local priceColumn = propertyCfg.priceColumn or 'price'
+      local nameColumn = propertyCfg.nameColumn or 'label'
+
+      local properties = MySQL.query.await(([[
+        SELECT `%s` AS citizenid, `%s` AS label,
+               COALESCE(`%s`, 100000) as price
+        FROM `%s`
         WHERE (last_iptu_at IS NULL OR last_iptu_at < DATE_SUB(NOW(), INTERVAL 30 DAY))
         LIMIT 100
-      ]])
+      ]]):format(ownerColumn, nameColumn, priceColumn, propertyTable))
       
       if properties then
         for _, p in ipairs(properties) do
           local iptu = calculateIPTU(U.toInt(p.price, 100000))
-          local propertyCount = countAssets('player_houses', p.citizenid)
+          local propertyCount = countAssets(propertyTable, ownerColumn, p.citizenid)
           iptu = applyAssetMultiplier(iptu, propertyCount, Config.AssetTax and Config.AssetTax.PropertyMultiplier)
           
           if iptu > 0 and SE.Debts and SE.Debts.Upsert then
@@ -437,11 +509,11 @@ if cfg.RealEstate and cfg.RealEstate.AutoIPTU then
             })
             
             -- Atualiza última cobrança
-            MySQL.update.await([[
-              UPDATE player_houses
+            MySQL.update.await(([[
+              UPDATE `%s`
               SET last_iptu_at = NOW()
-              WHERE label = ?
-            ]], {p.label})
+              WHERE `%s` = ?
+            ]]):format(propertyTable, nameColumn), { p.label })
             
             dbg(('IPTU mensal: %s | $%d (propriedade: %s)'):format(p.citizenid, iptu, p.label))
           end

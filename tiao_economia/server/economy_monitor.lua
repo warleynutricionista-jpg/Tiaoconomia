@@ -19,6 +19,7 @@ local MonitorState = {
   companyMoney = 0,         -- Dinheiro de empresas/sociedades
   treasuryMoney = 0,        -- Tesouro público
   totalCirculation = 0,     -- Circulação total
+  companies = {},           -- Lista de empresas (riqueza corporativa)
 
   -- PIB (Produto Interno Bruto)
   pib = {
@@ -205,6 +206,13 @@ function EM.CalculateMoneyCirculation()
   local bankMoney = 0
   local populationTotal = 0
   local populationActive = 0
+  local companies = {}
+  local moneySupply = nil
+
+  if SE.DB and SE.DB.GetTotalMoneySupply then
+    moneySupply = SE.DB.GetTotalMoneySupply()
+    playerMoney = U.toInt(moneySupply.playerMoney, 0)
+  end
 
   local useSnapshot = Config.Circulation.UseWealthSnapshot
   local snapshot = useSnapshot and getWealthSnapshotCached() or nil
@@ -221,10 +229,11 @@ function EM.CalculateMoneyCirculation()
       end
     end
 
+    local snapshotTotal = 0
     for _, entry in ipairs(snapshot) do
       local cash = U.toInt(entry.cash, 0)
       local bank = U.toInt(entry.bank, 0)
-      playerMoney = playerMoney + cash + bank
+      snapshotTotal = snapshotTotal + cash + bank
       bankMoney = bankMoney + bank
       populationTotal = populationTotal + 1
 
@@ -232,6 +241,10 @@ function EM.CalculateMoneyCirculation()
       if (lastSeen and lastSeen >= cutoff) or (not lastSeen and online[entry.citizenid]) then
         populationActive = populationActive + 1
       end
+    end
+
+    if not moneySupply then
+      playerMoney = snapshotTotal
     end
   else
     -- Somar dinheiro de todos os players online
@@ -241,7 +254,9 @@ function EM.CalculateMoneyCirculation()
         local cash = SE.Integrations.GetMoney(srcNum, 'cash') or 0
         local bank = SE.Integrations.GetMoney(srcNum, 'bank') or 0
 
-        playerMoney = playerMoney + cash + bank
+        if not moneySupply then
+          playerMoney = playerMoney + cash + bank
+        end
         bankMoney = bankMoney + bank
       end
     end
@@ -257,7 +272,12 @@ function EM.CalculateMoneyCirculation()
 
   -- Empresas/Sociedades (se tiver integração)
   local companyMoney = 0
-  if MySQL then
+  if SE.DB and SE.DB.GetAllCompanies then
+    companies = SE.DB.GetAllCompanies()
+    for _, company in ipairs(companies) do
+      companyMoney = companyMoney + U.toInt(company.balance, 0)
+    end
+  elseif MySQL then
     for _, entry in ipairs(Config.CompanyFundsTables or {}) do
       local tableName = entry
       local columnName = 'amount'
@@ -281,6 +301,10 @@ function EM.CalculateMoneyCirculation()
     end
   end
 
+  if moneySupply and moneySupply.companyMoney then
+    companyMoney = U.toInt(moneySupply.companyMoney, companyMoney)
+  end
+
   -- Total
   local totalCirculation = playerMoney + companyMoney + treasuryMoney
 
@@ -296,6 +320,7 @@ function EM.CalculateMoneyCirculation()
   MonitorState.population = populationActive > 0 and populationActive or populationTotal
   MonitorState.populationTotal = populationTotal
   MonitorState.populationActive = populationActive
+  MonitorState.companies = companies
 
   return {
     playerMoney = playerMoney,
@@ -561,6 +586,11 @@ function EM.GetReport()
       bankingRate = MonitorState.bankingRate,
     },
 
+    corporateWealth = {
+      total = MonitorState.companyMoney,
+      companies = MonitorState.companies,
+    },
+
     pib = MonitorState.pib,
 
     indicators = {
@@ -602,6 +632,21 @@ RegisterCommand('eco_relatorio', function(source, args)
   end
 
   local report = EM.GetReport()
+  local companies = report.corporateWealth and report.corporateWealth.companies or {}
+  table.sort(companies, function(a, b)
+    return U.toInt(a.balance, 0) > U.toInt(b.balance, 0)
+  end)
+
+  local topCompanies = {}
+  local topLimit = math.min(5, #companies)
+  for i = 1, topLimit do
+    local company = companies[i]
+    topCompanies[#topCompanies + 1] = string.format('  - %s (%s): $%s',
+      tostring(company.name),
+      tostring(company.source),
+      U.formatNumber(U.toInt(company.balance, 0))
+    )
+  end
 
   local output = {
     '\n========================================',
@@ -621,6 +666,9 @@ RegisterCommand('eco_relatorio', function(source, args)
       U.formatNumber(report.circulation.companyMoney),
       report.circulation.total > 0 and (report.circulation.companyMoney / report.circulation.total * 100) or 0
     ),
+    string.format('  Empresas registradas: %d', #companies),
+    (#topCompanies > 0 and '  Riqueza Corporativa (Top 5):' or '  Riqueza Corporativa: nenhuma'),
+    table.unpack(topCompanies),
     string.format('  Tesouro: $%s (%.1f%%)',
       U.formatNumber(report.circulation.treasuryMoney),
       report.circulation.total > 0 and (report.circulation.treasuryMoney / report.circulation.total * 100) or 0
