@@ -426,6 +426,50 @@ Config.Integrations = {
 }
 
 -- ============================================================
+-- INTEGRAÇÕES EXTERNAS (EVENTOS/COMPRA/TRANSFERÊNCIA)
+-- ============================================================
+-- Use este bloco para sobrescrever os defaults do arquivo
+-- server/external_integrations.lua. Mantido comentado para evitar
+-- alterações involuntárias no comportamento padrão.
+--[[
+Config.ExternalIntegrations = {
+  General = {
+    Enabled = true,
+    Debug = false,
+    StartDelayMs = 2000,
+    DefaultDueDays = 7,
+    DedupeWindowSec = 6,
+  },
+  Banking = {
+    Enabled = true,
+    Mode = 'debt',
+    DueDays = 7,
+    TaxTransfers = true,
+    TransferTaxRate = 0.5,
+    TransferMinTax = 10,
+    TransferMinBase = 100,
+  },
+}
+]]
+
+-- ============================================================
+-- INTEGRAÇÕES VIA BANCO DE DADOS (DB INTEGRATIONS)
+-- ============================================================
+-- Sobrescreve defaults de server/db_integrations.lua.
+--[[
+Config.DBIntegrations = {
+  Enabled = true,
+  DebugMode = true,
+  DueDays = 7,
+  Systems = {
+    ['ps-banking'] = { enabled = true, interval = 60000 },
+    ['dealership'] = { enabled = true, interval = 120000 },
+    ['properties'] = { enabled = true, interval = 120000 },
+  }
+}
+]]
+
+-- ============================================================
 -- WEBHOOKS / NOTIFICAÇÕES EXTERNAS
 -- ============================================================
 Config.Webhooks = {

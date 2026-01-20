@@ -25,6 +25,26 @@ DBInt.Config = {
   }
 }
 
+local function DeepMerge(dst, src)
+  if type(dst) ~= 'table' then dst = {} end
+  if type(src) ~= 'table' then return dst end
+  for k, v in pairs(src) do
+    if type(v) == 'table' and type(dst[k]) == 'table' then
+      dst[k] = DeepMerge(dst[k], v)
+    else
+      dst[k] = v
+    end
+  end
+  return dst
+end
+
+if Config then
+  local overrides = Config.DBIntegrations or (Config.Integrations and Config.Integrations.DBIntegrations)
+  if overrides then
+    DBInt.Config = DeepMerge(DBInt.Config, overrides)
+  end
+end
+
 DBInt.State = {
   initialized = false,
   running = {},
