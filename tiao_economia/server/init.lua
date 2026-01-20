@@ -14,6 +14,7 @@ SE.Treasury = SE.Treasury or {}
 SE.Integrations = SE.Integrations or {}
 SE.CharCache = SE.CharCache or {}
 SE.Metrics = SE.Metrics or {}
+SE.Organizations = SE.Organizations or {}
 
 -- Meta
 SE.Resource = GetCurrentResourceName()

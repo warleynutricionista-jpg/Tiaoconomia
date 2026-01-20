@@ -66,6 +66,7 @@ server_scripts {
   'server/money_laundering.lua', -- Lavagem oficial
   'server/labor_market.lua',     -- Salário mínimo, desemprego
   'server/hooks.lua',            -- Hooks universais de transação
+  'server/organizations.lua',    -- Organizações/empresas de players
 
   -- Admin & Events
   'server/admin.lua',
@@ -276,4 +277,14 @@ exports {
   'GetSectorMinSalary',
   'GetLaborMarketReport',
   'ForceWageAdjustment',
+}
+
+-- Organizations
+exports {
+  'CreateOrganization',
+  'GetOrganization',
+  'GetOrganizationProducts',
+  'AddOrganizationProduct',
+  'BuyOrganizationProduct',
+  'GetOrganizationBalance',
 }

@@ -86,6 +86,62 @@ CREATE TABLE IF NOT EXISTS `space_economy_wage_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
+-- Organizações/Empresas de Players
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `space_economy_organizations` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(64) NOT NULL UNIQUE,
+  `tag` VARCHAR(8) NOT NULL UNIQUE,
+  `owner_citizenid` VARCHAR(64) NOT NULL,
+  `balance` BIGINT NOT NULL DEFAULT 0,
+  `settings` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `space_economy_org_members` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `org_id` INT NOT NULL,
+  `citizenid` VARCHAR(64) NOT NULL,
+  `role` VARCHAR(32) NOT NULL DEFAULT 'staff',
+  `permissions` JSON NULL,
+  `joined_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `unique_member` (`org_id`, `citizenid`),
+  INDEX `idx_org_id` (`org_id`),
+  INDEX `idx_citizenid` (`citizenid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `space_economy_org_products` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `org_id` INT NOT NULL,
+  `item` VARCHAR(64) NOT NULL,
+  `label` VARCHAR(64) NULL,
+  `base_cost` BIGINT NOT NULL DEFAULT 0,
+  `price` BIGINT NOT NULL DEFAULT 0,
+  `stock` INT NOT NULL DEFAULT 0,
+  `metadata` JSON NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `unique_product` (`org_id`, `item`),
+  INDEX `idx_org_id` (`org_id`),
+  INDEX `idx_item` (`item`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `space_economy_org_transactions` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `org_id` INT NOT NULL,
+  `citizenid` VARCHAR(64) NOT NULL,
+  `item` VARCHAR(64) NOT NULL,
+  `quantity` INT NOT NULL,
+  `unit_price` BIGINT NOT NULL,
+  `logistics_fee` BIGINT NOT NULL DEFAULT 0,
+  `tax_amount` BIGINT NOT NULL DEFAULT 0,
+  `total` BIGINT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_org_id` (`org_id`),
+  INDEX `idx_citizenid` (`citizenid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
 -- Views para Relatórios
 -- ============================================================
 
