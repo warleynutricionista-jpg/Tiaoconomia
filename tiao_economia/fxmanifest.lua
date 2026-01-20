@@ -2,9 +2,9 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'space_economy (QBOX Advanced v3.1)'
-description 'Sistema econômico completo: impostos, dívidas, parcelamento, crédito, empréstimos, taxação automática + melhorias v3.1'
-version '3.1.0'
+author 'space_economy (QBOX Advanced v3.3)'
+description 'Sistema econômico ultra-realista: PIB, inflação, SELIC, eventos econômicos, bolsa de valores, investimentos, mercado de trabalho + economia auto-regulada'
+version '3.3.0'
 
 -- ============================================================
 -- SHARED (Client + Server)
@@ -57,6 +57,11 @@ server_scripts {
   'server/economy_monitor.lua', -- Monitoramento PIB e circulação monetária
   'server/monetary_policy.lua', -- Política monetária automática (SELIC, inflação)
   'server/economic_events.lua', -- Eventos econômicos (crises, booms)
+
+  -- Fase 3.3 (Mercado Financeiro e Trabalho)
+  'server/stock_market.lua',    -- Bolsa de valores com ações e Ibovespa
+  'server/banking_system.lua',  -- Sistema bancário (poupança, CDB, investimentos)
+  'server/labor_market.lua',    -- Mercado de trabalho (salário mínimo, desemprego)
 
   -- Admin & Events
   'server/admin.lua',
@@ -234,4 +239,32 @@ exports {
   'TriggerEconomicEvent',
   'GetEventoAtivo',
   'GetHistoricoEventos',
+}
+
+-- Stock Market (v3.3)
+exports {
+  'BuyStock',
+  'SellStock',
+  'GetQuotes',
+  'GetPortfolio',
+  'GetIbovespa',
+}
+
+-- Banking System (v3.3)
+exports {
+  'BankOpenAccount',
+  'BankDeposit',
+  'BankWithdraw',
+  'BankInvest',
+  'BankRedeem',
+  'BankGetStatement',
+}
+
+-- Labor Market (v3.3)
+exports {
+  'GetMinimumWage',
+  'GetAverageWage',
+  'GetUnemploymentRate',
+  'GetLaborReport',
+  'GetSectorWages',
 }
