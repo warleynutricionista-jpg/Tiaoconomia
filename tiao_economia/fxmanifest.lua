@@ -56,6 +56,7 @@ server_scripts {
   'server/rewards.lua',         -- Sistema de recompensas
   'server/discord.lua',         -- Discord webhooks
   'server/money_trail.lua',     -- Rastreamento de dinheiro
+  'server/alerts.lua',          -- Monitoramento e alertas automatizados
 
   -- Sistemas Econômicos Avançados v4.0
   'server/economy_monitor.lua',  -- PIB, Circulação Monetária
