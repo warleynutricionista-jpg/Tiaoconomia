@@ -262,7 +262,40 @@ function SE.CreditScore.Calculate(citizenid)
   local creditAge = calculateCreditAge(data)
   local creditMix = calculateCreditMix(citizenid)
   local recentActivity = calculateRecentActivity(citizenid)
-  
+
+  local internalDebt = 0
+  local externalDebt = 0
+  local financingDebt = 0
+  local bankBalance = 0
+
+  if MySQL then
+    internalDebt = MySQL.scalar.await([[
+      SELECT COALESCE(SUM(amount), 0)
+      FROM space_economy_debts
+      WHERE citizenid = ? AND status = 'active'
+    ]], { citizenid }) or 0
+  end
+
+  if SE.DB and SE.DB.GetExternalDebts then
+    externalDebt = SE.DB.GetExternalDebts(citizenid)
+  end
+
+  if SE.DB and SE.DB.GetFinancingDebt then
+    financingDebt = SE.DB.GetFinancingDebt(citizenid)
+  end
+
+  if SE.DB and SE.DB.GetPlayerBankBalance then
+    bankBalance = SE.DB.GetPlayerBankBalance(citizenid)
+  end
+
+  internalDebt = U.toInt(internalDebt, 0)
+  externalDebt = U.toInt(externalDebt, 0)
+  financingDebt = U.toInt(financingDebt, 0)
+  bankBalance = U.toInt(bankBalance, 0)
+
+  local totalDebt = internalDebt + externalDebt + financingDebt
+  local debtOverBank = totalDebt > bankBalance
+
   -- Score total
   local totalScore = math.floor(
     paymentHistory + 
@@ -271,6 +304,10 @@ function SE.CreditScore.Calculate(citizenid)
     creditMix + 
     recentActivity
   )
+
+  if debtOverBank then
+    totalScore = totalScore - 100
+  end
   
   totalScore = math.max(0, math.min(1000, totalScore))
   
@@ -286,6 +323,14 @@ function SE.CreditScore.Calculate(citizenid)
   return {
     score = totalScore,
     rating = rating,
+    debt = {
+      internal = internalDebt,
+      external = externalDebt,
+      financing = financingDebt,
+      total = totalDebt,
+      bankBalance = bankBalance,
+      overBank = debtOverBank,
+    },
     components = {
       payment_history = paymentHistory,
       debt_ratio = debtRatio,

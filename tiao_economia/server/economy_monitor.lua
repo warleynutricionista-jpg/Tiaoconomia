@@ -20,6 +20,7 @@ local MonitorState = {
   treasuryMoney = 0,        -- Tesouro público
   totalCirculation = 0,     -- Circulação total
   companies = {},           -- Lista de empresas (riqueza corporativa)
+  privateDebt = 0,          -- Dívida privada total
 
   -- PIB (Produto Interno Bruto)
   pib = {
@@ -322,6 +323,15 @@ function EM.CalculateMoneyCirculation()
   MonitorState.populationActive = populationActive
   MonitorState.companies = companies
 
+  local privateDebt = 0
+  if SE.DB and SE.DB.GetTotalExternalDebts then
+    privateDebt = privateDebt + U.toInt(SE.DB.GetTotalExternalDebts(), 0)
+  end
+  if SE.DB and SE.DB.GetTotalFinancingDebt then
+    privateDebt = privateDebt + U.toInt(SE.DB.GetTotalFinancingDebt(), 0)
+  end
+  MonitorState.privateDebt = privateDebt
+
   return {
     playerMoney = playerMoney,
     companyMoney = companyMoney,
@@ -331,6 +341,7 @@ function EM.CalculateMoneyCirculation()
     population = MonitorState.population,
     populationTotal = populationTotal,
     populationActive = populationActive,
+    privateDebt = privateDebt,
   }
 end
 
@@ -584,6 +595,7 @@ function EM.GetReport()
       treasuryMoney = MonitorState.treasuryMoney,
       total = MonitorState.totalCirculation,
       bankingRate = MonitorState.bankingRate,
+      privateDebt = MonitorState.privateDebt,
     },
 
     corporateWealth = {
@@ -674,6 +686,7 @@ RegisterCommand('eco_relatorio', function(source, args)
       report.circulation.total > 0 and (report.circulation.treasuryMoney / report.circulation.total * 100) or 0
     ),
     string.format('  Bancarização: %.1f%%', report.circulation.bankingRate),
+    string.format('  Dívida Privada Total: $%s', U.formatNumber(report.circulation.privateDebt or 0)),
     '',
     'PIB (Produto Interno Bruto):',
     string.format('  PIB Total: $%s', U.formatNumber(report.pib.total)),
