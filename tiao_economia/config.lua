@@ -384,6 +384,20 @@ Config.Security = {
 }
 
 -- ============================================================
+-- MONITORAMENTO E ALERTAS AUTOMATIZADOS
+-- ============================================================
+Config.Alerts = {
+  Enabled = true,
+  IntervalMinutes = 5,       -- Intervalo de verificação
+  CooldownMinutes = 30,      -- Evita alertas repetidos
+  NotifyStaff = true,        -- Notificar staff in-game
+
+  -- Limites
+  MaxInflation = 1.30,       -- Alerta quando inflação >= valor
+  MinVaultBalance = 100000,  -- Alerta quando tesouro <= valor
+}
+
+-- ============================================================
 -- ALERTAS DE DINHEIRO ILEGAL (RP/INVESTIGAÇÕES)
 -- ============================================================
 Config.IllegalMoney = {
