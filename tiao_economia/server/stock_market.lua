@@ -17,6 +17,7 @@ local Companies = {
     ticker = 'BENN',
     name = "Benny's Mechanics",
     sector = 'Serviços',
+    sharesOutstanding = 120000,
     basePrice = 150,
     currentPrice = 150,
     openPrice = 150,
@@ -29,6 +30,7 @@ local Companies = {
     ticker = 'AMMU',
     name = 'Ammunation Corp',
     sector = 'Comércio',
+    sharesOutstanding = 180000,
     basePrice = 320,
     currentPrice = 320,
     openPrice = 320,
@@ -41,6 +43,7 @@ local Companies = {
     ticker = 'PDLS',
     name = 'Paradise Stores',
     sector = 'Comércio',
+    sharesOutstanding = 220000,
     basePrice = 85,
     currentPrice = 85,
     openPrice = 85,
@@ -53,6 +56,7 @@ local Companies = {
     ticker = 'CLUC',
     name = 'Cluckin Bell',
     sector = 'Alimentação',
+    sharesOutstanding = 260000,
     basePrice = 45,
     currentPrice = 45,
     openPrice = 45,
@@ -65,6 +69,7 @@ local Companies = {
     ticker = 'MAZE',
     name = 'Maze Bank',
     sector = 'Financeiro',
+    sharesOutstanding = 90000,
     basePrice = 580,
     currentPrice = 580,
     openPrice = 580,
@@ -77,6 +82,7 @@ local Companies = {
     ticker = 'PHMC',
     name = 'Pillbox Medical',
     sector = 'Saúde',
+    sharesOutstanding = 140000,
     basePrice = 210,
     currentPrice = 210,
     openPrice = 210,
@@ -89,6 +95,7 @@ local Companies = {
     ticker = 'LSPD',
     name = 'Property Developers',
     sector = 'Imóveis',
+    sharesOutstanding = 160000,
     basePrice = 125,
     currentPrice = 125,
     openPrice = 125,
@@ -101,6 +108,7 @@ local Companies = {
     ticker = 'VPCR',
     name = 'Vapid Rentals',
     sector = 'Transporte',
+    sharesOutstanding = 190000,
     basePrice = 95,
     currentPrice = 95,
     openPrice = 95,
@@ -154,7 +162,8 @@ function SM.CalculateIbovespa()
   local weightedSum = 0
 
   for _, company in ipairs(Companies) do
-    local weight = company.basePrice  -- Peso baseado no preço base
+    local marketCap = (company.currentPrice or company.basePrice) * (company.sharesOutstanding or 1)
+    local weight = marketCap > 0 and marketCap or company.basePrice
     local change = (company.currentPrice - company.openPrice) / company.openPrice
 
     weightedSum = weightedSum + (change * weight)
@@ -234,6 +243,7 @@ function SM.UpdatePrices()
 
     -- Calcular variação do dia
     company.dayChange = (company.currentPrice - company.openPrice) / company.openPrice
+    company.marketCap = company.currentPrice * (company.sharesOutstanding or 1)
   end
 
   -- Recalcular Ibovespa

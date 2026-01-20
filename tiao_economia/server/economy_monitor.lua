@@ -37,6 +37,10 @@ local MonitorState = {
   population = 0,           -- População econômica ativa
   activeMoney = 0,          -- Massa monetária de players ativos (7 dias)
   gini = 0,                 -- Coeficiente de Gini
+  populationTotal = 0,     -- População total (base DB quando possível)
+  populationActive = 0,    -- População ativa (janela configurável)
+
+  ipcPriceIndex = {},      -- Cache de preços médios por categoria IPC
 
   -- Rastreamento de transações (últimas 24h)
   transactions = {
@@ -57,6 +61,18 @@ local Config = {
   UpdateInterval = 60000,        -- Atualizar a cada 1 minuto
   TransactionHistoryHours = 24,  -- Manter histórico de 24h
   Debug = (GlobalConfig and GlobalConfig.Debug) or false,
+
+  Circulation = {
+    UseWealthSnapshot = true,    -- Incluir players offline via snapshot
+    ActiveDays = 7,              -- Janela de atividade para população ativa
+    SnapshotCacheSeconds = 300,  -- Cache do snapshot (5 min)
+  },
+
+  CompanyFundsTables = {
+    'management_funds',
+    'qb_management_funds',
+    'qbx_management_funds',
+  },
 
   -- Categorias de transação para PIB
   Categories = {
@@ -83,7 +99,46 @@ local Config = {
     'exportacao',
     'importacao',
   },
+
+  IPCSampling = {
+    Enabled = true,
+    MinSamples = 5,
+    MaxChangePerUpdate = 0.05, -- 5% por ciclo
+    Map = {
+      alimentacao = { 'alimentacao' },
+      transporte = { 'combustivel', 'compra_veiculo', 'servico_mecanico' },
+      habitacao = { 'compra_imovel' },
+      saude = { 'servico_hospital' },
+      lazer = { 'compra_item' },
+    },
+  },
 }
+
+local snapshotCache = {
+  data = nil,
+  ts = 0,
+}
+
+local function tableExists(name)
+  if not MySQL then return false end
+  local ok, rows = pcall(function()
+    return MySQL.query.await('SHOW TABLES LIKE ?', { name })
+  end)
+  return ok and rows and #rows > 0
+end
+
+local function getWealthSnapshotCached()
+  if not (SE.WealthTax and SE.WealthTax.BuildWealthSnapshot) then return nil end
+  local now = os.time()
+  local ttl = Config.Circulation.SnapshotCacheSeconds or 300
+  if snapshotCache.data and (now - snapshotCache.ts) < ttl then
+    return snapshotCache.data
+  end
+  local data = SE.WealthTax.BuildWealthSnapshot()
+  snapshotCache.data = data
+  snapshotCache.ts = now
+  return data
+end
 
 --============================================================
 -- Rastrear Transação
@@ -147,17 +202,50 @@ end
 function EM.CalculateMoneyCirculation()
   local playerMoney = 0
   local bankMoney = 0
+  local populationTotal = 0
+  local populationActive = 0
 
-  -- Somar dinheiro de todos os players online
-  for _, src in ipairs(GetPlayers()) do
-    local srcNum = tonumber(src)
-    if srcNum and SE.Integrations then
-      local cash = SE.Integrations.GetMoney(srcNum, 'cash') or 0
-      local bank = SE.Integrations.GetMoney(srcNum, 'bank') or 0
+  local useSnapshot = Config.Circulation.UseWealthSnapshot
+  local snapshot = useSnapshot and getWealthSnapshotCached() or nil
 
+  if snapshot and #snapshot > 0 then
+    local cutoff = os.time() - ((Config.Circulation.ActiveDays or 7) * 86400)
+    local online = {}
+    if SE.Bridge and SE.Bridge.GetCitizenId then
+      for _, src in ipairs(GetPlayers()) do
+        local cid = SE.Bridge.GetCitizenId(tonumber(src))
+        if cid then
+          online[cid] = true
+        end
+      end
+    end
+
+    for _, entry in ipairs(snapshot) do
+      local cash = U.toInt(entry.cash, 0)
+      local bank = U.toInt(entry.bank, 0)
       playerMoney = playerMoney + cash + bank
       bankMoney = bankMoney + bank
+      populationTotal = populationTotal + 1
+
+      local lastSeen = entry.lastSeen
+      if (lastSeen and lastSeen >= cutoff) or (not lastSeen and online[entry.citizenid]) then
+        populationActive = populationActive + 1
+      end
     end
+  else
+    -- Somar dinheiro de todos os players online
+    for _, src in ipairs(GetPlayers()) do
+      local srcNum = tonumber(src)
+      if srcNum and SE.Integrations then
+        local cash = SE.Integrations.GetMoney(srcNum, 'cash') or 0
+        local bank = SE.Integrations.GetMoney(srcNum, 'bank') or 0
+
+        playerMoney = playerMoney + cash + bank
+        bankMoney = bankMoney + bank
+      end
+    end
+    populationTotal = #GetPlayers()
+    populationActive = populationTotal
   end
 
   -- Tesouro
@@ -169,15 +257,18 @@ function EM.CalculateMoneyCirculation()
   -- Empresas/Sociedades (se tiver integração)
   local companyMoney = 0
   if MySQL then
-    local ok, result = pcall(function()
-      -- Tentar buscar de qb-management ou similar
-      return MySQL.scalar.await(
-        'SELECT COALESCE(SUM(amount), 0) FROM management_funds',
-        {}
-      )
-    end)
-    if ok and result then
-      companyMoney = U.toInt(result, 0)
+    for _, tableName in ipairs(Config.CompanyFundsTables or {}) do
+      if tableExists(tableName) then
+        local ok, result = pcall(function()
+          return MySQL.scalar.await(
+            ('SELECT COALESCE(SUM(amount), 0) FROM %s'):format(tableName),
+            {}
+          )
+        end)
+        if ok and result then
+          companyMoney = companyMoney + U.toInt(result, 0)
+        end
+      end
     end
   end
 
@@ -187,16 +278,15 @@ function EM.CalculateMoneyCirculation()
   -- Taxa de bancarização
   local bankingRate = playerMoney > 0 and (bankMoney / playerMoney * 100) or 0
 
-  -- População
-  local population = #GetPlayers()
-
   -- Atualizar estado
   MonitorState.playerMoney = playerMoney
   MonitorState.companyMoney = companyMoney
   MonitorState.treasuryMoney = treasuryMoney
   MonitorState.totalCirculation = totalCirculation
   MonitorState.bankingRate = bankingRate
-  MonitorState.population = population
+  MonitorState.population = populationActive > 0 and populationActive or populationTotal
+  MonitorState.populationTotal = populationTotal
+  MonitorState.populationActive = populationActive
 
   return {
     playerMoney = playerMoney,
@@ -204,7 +294,9 @@ function EM.CalculateMoneyCirculation()
     treasuryMoney = treasuryMoney,
     totalCirculation = totalCirculation,
     bankingRate = bankingRate,
-    population = population,
+    population = MonitorState.population,
+    populationTotal = populationTotal,
+    populationActive = populationActive,
   }
 end
 
@@ -213,7 +305,7 @@ end
 --============================================================
 function EM.CalculateActiveMoneySupply()
   local activeMoney = 0
-  local cutoff = os.time() - (7 * 24 * 60 * 60)
+  local cutoff = os.time() - ((Config.Circulation.ActiveDays or 7) * 86400)
   local online = {}
 
   if SE.Bridge and SE.Bridge.GetCitizenId then
@@ -225,8 +317,8 @@ function EM.CalculateActiveMoneySupply()
     end
   end
 
-  if SE.WealthTax and SE.WealthTax.BuildWealthSnapshot then
-    local snapshot = SE.WealthTax.BuildWealthSnapshot()
+  local snapshot = getWealthSnapshotCached()
+  if snapshot then
     for _, entry in ipairs(snapshot) do
       local lastSeen = entry.lastSeen
       if (lastSeen and lastSeen >= cutoff) or (not lastSeen and online[entry.citizenid]) then
@@ -341,7 +433,9 @@ function EM.CalculatePIB()
   local total = consumption + investment + government + (exports - imports)
 
   -- PIB per capita
-  local perCapita = MonitorState.population > 0 and (total / MonitorState.population) or 0
+  local populationBase = MonitorState.populationActive > 0 and MonitorState.populationActive
+    or MonitorState.population
+  local perCapita = populationBase > 0 and (total / populationBase) or 0
 
   -- Atualizar estado
   MonitorState.pib = {
@@ -375,6 +469,42 @@ function EM.CalculateVelocity()
 end
 
 --============================================================
+-- Atualizar IPC com base em transações reais (proxy de preços)
+--============================================================
+function EM.UpdateIPCFromTransactions()
+  local cfg = Config.IPCSampling
+  if not (cfg and cfg.Enabled and SE.MonetaryPolicy) then return end
+
+  for ipcCategory, mapped in pairs(cfg.Map or {}) do
+    local totalVolume = 0
+    local totalCount = 0
+
+    for _, category in ipairs(mapped) do
+      local data = MonitorState.transactions.byCategory[category]
+      if data then
+        totalVolume = totalVolume + (data.volume or 0)
+        totalCount = totalCount + (data.count or 0)
+      end
+    end
+
+    if totalCount >= (cfg.MinSamples or 1) and totalVolume > 0 then
+      local avgPrice = totalVolume / totalCount
+      local lastAvg = MonitorState.ipcPriceIndex[ipcCategory]
+
+      if lastAvg and lastAvg > 0 then
+        local change = (avgPrice - lastAvg) / lastAvg
+        local maxChange = cfg.MaxChangePerUpdate or 0.05
+        change = math.max(-maxChange, math.min(maxChange, change))
+
+        exports.tiao_economia:AdjustIPCCategory(ipcCategory, change * 100)
+      end
+
+      MonitorState.ipcPriceIndex[ipcCategory] = avgPrice
+    end
+  end
+end
+
+--============================================================
 -- Atualizar Todos os Indicadores
 --============================================================
 function EM.UpdateAll()
@@ -382,6 +512,7 @@ function EM.UpdateAll()
   EM.CalculatePIB()
   EM.CalculateVelocity()
   EM.CalculateGini()
+  EM.UpdateIPCFromTransactions()
 
   MonitorState.lastUpdate = os.time()
 
@@ -426,6 +557,8 @@ function EM.GetReport()
     indicators = {
       velocity = MonitorState.velocity,
       population = MonitorState.population,
+      populationTotal = MonitorState.populationTotal,
+      populationActive = MonitorState.populationActive,
       activeMoney = MonitorState.activeMoney,
       gini = MonitorState.gini,
     },
@@ -466,6 +599,8 @@ RegisterCommand('eco_relatorio', function(source, args)
     'RELATÓRIO ECONÔMICO DA CIDADE',
     '========================================',
     string.format('População Econômica: %d players', report.indicators.population),
+    string.format('População Total (DB): %d', report.indicators.populationTotal or 0),
+    string.format('População Ativa: %d', report.indicators.populationActive or 0),
     '',
     'CIRCULAÇÃO MONETÁRIA:',
     string.format('  Total em Circulação: $%s', U.formatNumber(report.circulation.total)),

@@ -193,6 +193,42 @@ local function resolveOutcome(event)
   return findOutcomeById(event, (EventConfig.Outcome and EventConfig.Outcome.Default) or 'neutro'), mode
 end
 
+local function clamp(v, minv, maxv)
+  return math.max(minv, math.min(maxv, v))
+end
+
+local function getMacroMultiplier()
+  local mult = 1.0
+
+  if SE.EconomyMonitor and SE.EconomyMonitor.GetReport then
+    local report = SE.EconomyMonitor.GetReport()
+    local indicators = report and report.indicators or {}
+
+    local gini = tonumber(indicators.gini) or 0
+    local velocity = tonumber(indicators.velocity) or 0
+
+    if gini > 0.55 then
+      mult = mult + math.min((gini - 0.55) * 0.5, 0.15)
+    end
+
+    if velocity > 1.2 then
+      mult = mult + 0.10
+    elseif velocity < 0.6 then
+      mult = mult - 0.10
+    end
+  end
+
+  local inflation = 0
+  if exports and exports.tiao_economia and exports.tiao_economia.GetMonthlyInflation then
+    inflation = exports.tiao_economia:GetMonthlyInflation() or 0
+  end
+  if inflation > 0.06 then
+    mult = mult + 0.10
+  end
+
+  return clamp(mult, 0.6, 1.5)
+end
+
 --============================================================
 -- Catálogo de Eventos
 --============================================================
@@ -501,7 +537,7 @@ end
 -- Aplicar Efeitos do Evento
 --============================================================
 function EE.ApplyEffects(effects, apply, context)
-  local multiplier = apply and 1 or -1
+  local multiplier = (apply and 1 or -1) * getMacroMultiplier()
   context = context or {}
 
   -- PIB (via Economy Monitor)
