@@ -68,6 +68,14 @@ local function notify(src, msg, typ)
   end
 end
 
+local function registerTransaction(category, amount, meta)
+  if SE
+    and SE.EconomyMonitor
+    and type(SE.EconomyMonitor.RegisterTransaction) == 'function' then
+    SE.EconomyMonitor.RegisterTransaction(category, amount, meta)
+  end
+end
+
 local function hasMySQL()
   return MySQL
     and MySQL.query and MySQL.query.await
@@ -446,6 +454,14 @@ function Loans.Request(src, amount, months, purpose)
     return false, 'falha_credito_banco'
   end
 
+  registerTransaction('emprestimo_governo', sim.disbursedAmount, {
+    loan_id = loanId,
+    citizenid = cid,
+    purpose = sim.purpose,
+    term_months = sim.termMonths,
+    interest_rate = sim.interestRate
+  })
+
   -- score
   if SE.CreditScore and type(SE.CreditScore.RecordEvent) == 'function' then
     pcall(SE.CreditScore.RecordEvent, cid, 'loan_approved', { amount = sim.amount, loan_id = loanId })
@@ -571,6 +587,13 @@ function Loans.PayInstallment(loanId, src)
 
   -- vai pro tesouro
   treasuryDeposit(monthlyPayment, 'pagamento_emprestimo', { loan_id = loanId, citizenid = loan.citizenid })
+
+  registerTransaction('pagamento_emprestimo', monthlyPayment, {
+    loan_id = loanId,
+    citizenid = loan.citizenid,
+    principal = principal,
+    interest = interest
+  })
 
   if SE.Locks and type(SE.Locks.Release) == 'function' then
     SE.Locks.Release(lockKey, owner, true)

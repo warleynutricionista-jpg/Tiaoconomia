@@ -48,7 +48,41 @@ local function sanitizeBrackets(brackets)
 end
 
 local function getBrackets()
+  if Config and Config.DynamicTax and Config.DynamicTax.Enabled then
+    return sanitizeBrackets(SE.Tax.GetDynamicBrackets())
+  end
+
   return sanitizeBrackets(Config and Config.TaxBrackets)
+end
+
+function SE.Tax.GetDynamicBrackets()
+  local perCapita = nil
+  if SE.EconomyMonitor and type(SE.EconomyMonitor.GetReport) == 'function' then
+    local report = SE.EconomyMonitor.GetReport()
+    perCapita = report and report.pib and report.pib.perCapita
+  end
+
+  perCapita = U.toNumber(perCapita, (Config.DynamicTax and Config.DynamicTax.FallbackPIBPerCapita) or 5000)
+
+  local bracketCfg = (Config.DynamicTax and Config.DynamicTax.Brackets) or {}
+  local out = {}
+
+  for _, br in ipairs(bracketCfg) do
+    local minMul = U.toNumber(br.minMultiplier, 0)
+    local maxMul = br.maxMultiplier ~= nil and U.toNumber(br.maxMultiplier, nil) or nil
+    local rate = U.toNumber(br.rate, 0)
+
+    local minv = perCapita * minMul
+    local maxv = maxMul ~= nil and (perCapita * maxMul) or nil
+
+    out[#out + 1] = { min = minv, max = maxv, rate = rate }
+  end
+
+  if #out == 0 then
+    return defaultBrackets()
+  end
+
+  return out
 end
 
 --============================================================

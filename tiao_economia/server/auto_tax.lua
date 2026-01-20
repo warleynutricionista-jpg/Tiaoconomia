@@ -13,6 +13,39 @@ local function dbg(...)
   if U and U.dbg then U.dbg(...) else print('^3[auto_tax]^7', ...) end 
 end
 
+local function registerTransaction(category, amount, meta)
+  if SE
+    and SE.EconomyMonitor
+    and type(SE.EconomyMonitor.RegisterTransaction) == 'function' then
+    SE.EconomyMonitor.RegisterTransaction(category, amount, meta)
+  end
+end
+
+local function countAssets(tableName, citizenid)
+  if not MySQL or not citizenid or citizenid == '' then return 0 end
+  local ok, result = pcall(function()
+    return MySQL.scalar.await(('SELECT COUNT(*) FROM %s WHERE citizenid = ?'):format(tableName), { citizenid })
+  end)
+  if not ok then return 0 end
+  return U.toInt(result, 0)
+end
+
+local function applyAssetMultiplier(baseTax, count, multiplierCfg)
+  baseTax = U.toInt(baseTax, 0)
+  if not (Config.AssetTax and Config.AssetTax.Enabled) then return baseTax end
+  local mult = U.toNumber(multiplierCfg, 0)
+  if mult <= 0 then return baseTax end
+
+  local extra = math.max(count - 1, 0)
+  local factor = 1 + (extra * mult)
+  local maxFactor = U.toNumber(Config.AssetTax.MaxMultiplier, 0)
+  if maxFactor > 0 then
+    factor = math.min(factor, maxFactor)
+  end
+
+  return math.floor(baseTax * factor)
+end
+
 --============================================================
 -- HOOKS PARA SHOPS (qb-shops, ox_inventory, etc)
 --============================================================
@@ -54,6 +87,13 @@ local function hookShopPurchase(src, item, price, quantity)
       quantity = quantity
     })
   end
+
+  registerTransaction('compra_item', price, {
+    citizenid = cid,
+    item = item,
+    quantity = quantity,
+    total_price = price
+  })
   
   dbg(('ICMS sobre compra: %s | $%d (base: $%d)'):format(cid, taxAmount, price))
   
@@ -111,6 +151,9 @@ function SE.AutoTax.OnVehiclePurchase(src, vehicleData)
   
   local ipva = calculateIPVA(price)
   if ipva <= 0 then return end
+
+  local vehicleCount = countAssets('player_vehicles', cid)
+  ipva = applyAssetMultiplier(ipva, vehicleCount + 1, Config.AssetTax and Config.AssetTax.VehicleMultiplier)
   
   -- Cria dívida de IPVA (vence em 30 dias)
   if SE.Debts and SE.Debts.Upsert then
@@ -124,6 +167,13 @@ function SE.AutoTax.OnVehiclePurchase(src, vehicleData)
     
     B.Notify(src, ('IPVA lançado: $%d (vence em 30 dias)'):format(ipva), 'inform')
   end
+
+  registerTransaction('compra_veiculo', price, {
+    citizenid = cid,
+    vehicle_model = vehicleData.model,
+    vehicle_plate = vehicleData.plate,
+    total_price = price
+  })
   
   dbg(('IPVA lançado: %s | $%d (veículo: %s)'):format(cid, ipva, vehicleData.plate or '?'))
 end
@@ -161,6 +211,8 @@ if cfg.Garages and cfg.Garages.AutoIPVA then
       if vehicles then
         for _, v in ipairs(vehicles) do
           local ipva = calculateIPVA(U.toInt(v.price, 50000))
+          local vehicleCount = countAssets('player_vehicles', v.citizenid)
+          ipva = applyAssetMultiplier(ipva, vehicleCount, Config.AssetTax and Config.AssetTax.VehicleMultiplier)
           
           if ipva > 0 and SE.Debts and SE.Debts.Upsert then
             SE.Debts.Upsert(v.citizenid, ipva, 'IPVA - ' .. (v.vehicle or 'Veículo'),
@@ -218,6 +270,9 @@ function SE.AutoTax.OnPropertyPurchase(src, propertyData)
   
   local iptu = calculateIPTU(price)
   if iptu <= 0 then return end
+
+  local propertyCount = countAssets('player_houses', cid)
+  iptu = applyAssetMultiplier(iptu, propertyCount + 1, Config.AssetTax and Config.AssetTax.PropertyMultiplier)
   
   -- Cria dívida de IPTU (vence em 30 dias)
   if SE.Debts and SE.Debts.Upsert then
@@ -231,6 +286,13 @@ function SE.AutoTax.OnPropertyPurchase(src, propertyData)
     
     B.Notify(src, ('IPTU lançado: $%d (vence em 30 dias)'):format(iptu), 'inform')
   end
+
+  registerTransaction('compra_imovel', price, {
+    citizenid = cid,
+    property_id = propertyData.id,
+    property_label = propertyData.label,
+    total_price = price
+  })
   
   dbg(('IPTU lançado: %s | $%d (propriedade: %s)'):format(cid, iptu, propertyData.label or '?'))
 end
@@ -272,6 +334,8 @@ if cfg.RealEstate and cfg.RealEstate.AutoIPTU then
       if properties then
         for _, p in ipairs(properties) do
           local iptu = calculateIPTU(U.toInt(p.price, 100000))
+          local propertyCount = countAssets('player_houses', p.citizenid)
+          iptu = applyAssetMultiplier(iptu, propertyCount, Config.AssetTax and Config.AssetTax.PropertyMultiplier)
           
           if iptu > 0 and SE.Debts and SE.Debts.Upsert then
             SE.Debts.Upsert(p.citizenid, iptu, 'IPTU - ' .. (p.label or 'Propriedade'),

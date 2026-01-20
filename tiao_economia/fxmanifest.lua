@@ -40,6 +40,8 @@ server_scripts {
   'server/credit_score.lua',    -- NOVO: Score de crédito
   'server/loans.lua',           -- NOVO: Empréstimos
   'server/auto_tax.lua',        -- NOVO: Taxação automática
+  'server/wealth_tax.lua',      -- NOVO: IGF + taxa de ociosidade
+  'server/social_programs.lua', -- NOVO: Redistribuição (UBI)
   'server/reports.lua',         -- NOVO: Relatórios e analytics
   'server/external_integrations.lua', -- NOVO: Integrações externas
   'server/db_integrations.lua', -- NOVO: Integrações diretas com banco de dados
