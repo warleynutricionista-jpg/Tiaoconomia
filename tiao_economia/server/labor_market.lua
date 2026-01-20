@@ -159,12 +159,23 @@ function LM.CalculateUnemployment()
     end
   end
 
+  -- Base populacional (preferir população ativa do Economy Monitor)
+  local populationBase = totalPlayers
+  if SE.EconomyMonitor and SE.EconomyMonitor.GetReport then
+    local report = SE.EconomyMonitor.GetReport()
+    local activePop = report and report.indicators and report.indicators.populationActive
+    if activePop and activePop > 0 then
+      populationBase = activePop
+    end
+  end
+
   -- Calcular taxa
-  local unemploymentRate = totalPlayers > 0 and ((totalPlayers - employed) / totalPlayers) or 0
+  local unemployed = math.max(populationBase - employed, 0)
+  local unemploymentRate = populationBase > 0 and (unemployed / populationBase) or 0
 
   LaborState.unemployment = {
     rate = unemploymentRate,
-    total = totalPlayers - employed,
+    total = unemployed,
     employed = employed,
   }
 
