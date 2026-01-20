@@ -459,4 +459,5 @@ RegisterCommand('eco_tax_property', function(source, args)
   TriggerClientEvent('chat:addMessage', source, {
     args = {'[Economia]', ('IPTU de $%d lançado para ID %d'):format(calculateIPTU(price), targetId)}
   })
-end, false)
+end, false) 
+
