@@ -9,6 +9,9 @@ SE.StockMarket = SE.StockMarket or {}
 local U = SE.Util
 local SM = SE.StockMarket
 
+-- Inicializar seed do random para evitar sequências previsíveis
+math.randomseed(os.time() + GetGameTimer())
+
 --============================================================
 -- Empresas Listadas
 --============================================================
@@ -19,11 +22,11 @@ local Companies = {
     sector = 'Serviços',
     sharesOutstanding = 120000,
     basePrice = 150,
-    currentPrice = 150,
-    openPrice = 150,
+    currentPrice = 150.0,  -- Garantir que seja número
+    openPrice = 150.0,
     dayChange = 0.0,
     volume = 0,
-    marketCap = 0,
+    marketCap = 18000000,  -- Inicializar market cap
     beta = 1.2,  -- Volatilidade (>1 = mais volátil)
   },
   {
@@ -162,9 +165,13 @@ function SM.CalculateIbovespa()
   local weightedSum = 0
 
   for _, company in ipairs(Companies) do
-    local marketCap = (company.currentPrice or company.basePrice) * (company.sharesOutstanding or 1)
-    local weight = marketCap > 0 and marketCap or company.basePrice
-    local change = (company.currentPrice - company.openPrice) / company.openPrice
+    -- Garantir que currentPrice nunca seja nil
+    local price = company.currentPrice or company.basePrice or 100
+    company.currentPrice = price
+
+    local marketCap = price * (company.sharesOutstanding or 1)
+    local weight = marketCap > 0 and marketCap or price
+    local change = (price - company.openPrice) / company.openPrice
 
     weightedSum = weightedSum + (change * weight)
     totalWeight = totalWeight + weight

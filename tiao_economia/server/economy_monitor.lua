@@ -177,7 +177,7 @@ function EM.RegisterTransaction(category, amount, metadata)
   -- Salvar no banco de dados para histórico
   if MySQL then
     CreateThread(function()
-      pcall(function()
+      local ok, err = pcall(function()
         MySQL.insert.await([[
           INSERT INTO space_economy_transactions (
             category, amount, metadata, created_at
@@ -188,6 +188,9 @@ function EM.RegisterTransaction(category, amount, metadata)
           metadata and json.encode(metadata) or nil
         })
       end)
+      if not ok then
+        U.dbg('[Economy Monitor] Erro ao salvar transação: ' .. tostring(err))
+      end
     end)
   end
 
@@ -383,18 +386,31 @@ end
 --============================================================
 -- Coeficiente de Gini (Desigualdade)
 --============================================================
+local giniCalculating = false
+
 function EM.CalculateGini()
   local now = os.time()
   if (now - (MonitorState.lastGiniUpdate or 0)) < 600 then
     return MonitorState.gini or 0
   end
 
+  -- Evitar múltiplas execuções simultâneas
+  if giniCalculating then
+    return MonitorState.gini or 0
+  end
+
+  giniCalculating = true
+
   if not (SE.WealthTax and SE.WealthTax.BuildWealthSnapshot) then
+    giniCalculating = false
     return MonitorState.gini or 0
   end
 
   local snapshot = SE.WealthTax.BuildWealthSnapshot()
-  if #snapshot == 0 then return MonitorState.gini or 0 end
+  if #snapshot == 0 then
+    giniCalculating = false
+    return MonitorState.gini or 0
+  end
 
   local totals = {}
   local sum = 0
@@ -422,6 +438,7 @@ function EM.CalculateGini()
 
   MonitorState.gini = gini
   MonitorState.lastGiniUpdate = now
+  giniCalculating = false
 
   if gini > 0.60 then
     U.dbg('[Economy Monitor] Gini acima de 0.60. Sugestão: aumentar Wealth Tax.')
@@ -804,6 +821,8 @@ CreateThread(function()
   -- Aguardar inicialização
   Wait(10000)
 
+  local lastCleanup = 0
+
   while true do
     Wait(Config.UpdateInterval)
 
@@ -811,8 +830,10 @@ CreateThread(function()
     EM.UpdateAll()
 
     -- Limpar transações antigas (a cada 1 hora)
-    if os.time() % 3600 < 60 then
+    local now = os.time()
+    if (now - lastCleanup) >= 3600 then
       EM.CleanOldTransactions()
+      lastCleanup = now
     end
   end
 end)

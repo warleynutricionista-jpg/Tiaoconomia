@@ -401,7 +401,22 @@ local function PsBankingAddStatementByCitizenId(citizenid, amount, description, 
     dbExec(sql, params)
   end)
 
-  if not ok then return false, tostring(err) end
+  if not ok then
+    local errorMsg = tostring(err)
+    dbg('[Integrations] Erro ao adicionar statement ps-banking: ' .. errorMsg)
+
+    -- Log no sistema se disponível
+    if SE.Log and type(SE.Log) == 'function' then
+      pcall(SE.Log, 'erro', 'Falha ao criar statement ps-banking', {
+        citizenid = citizenid,
+        amount = amount,
+        error = errorMsg
+      })
+    end
+
+    return false, errorMsg
+  end
+
   return true
 end
 
