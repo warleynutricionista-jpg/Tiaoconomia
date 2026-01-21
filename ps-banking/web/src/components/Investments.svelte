@@ -503,15 +503,15 @@
       <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
         {#if marketData.companies?.length}
           {#each marketData.companies as company}
-            <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+            <div class="flex items-center justify-between bg-gradient-to-r from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 rounded-xl px-4 py-3 border border-white/10 transition-all duration-200 hover:border-white/20">
               <div>
-                <p class="text-white font-semibold">{company.ticker} - {company.name}</p>
-                <p class="text-xs text-white/50">{company.sector}</p>
+                <p class="text-white font-bold text-sm">{company.ticker} - {company.name}</p>
+                <p class="text-xs text-white/70">{company.sector}</p>
               </div>
               <div class="text-right">
-                <p class="text-white font-semibold">{formatMoney(company.price)}</p>
-                <p class={`text-xs ${company.dayChange >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  {formatPercent(company.dayChange)}
+                <p class="text-white font-bold">{formatMoney(company.price)}</p>
+                <p class={`text-sm font-semibold ${company.dayChange >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {company.dayChange >= 0 ? "↑" : "↓"} {formatPercent(company.dayChange)}
                 </p>
               </div>
             </div>
@@ -524,38 +524,43 @@
       </div>
     </div>
 
-    <div class="modern-card p-6">
-      <h3 class="text-lg font-semibold text-white mb-4">{$Locales.trade || "Negociação"}</h3>
+    <div class="modern-card p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-2 border-indigo-500/30">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <i class="fas fa-chart-line text-indigo-400"></i>
+        {$Locales.trade || "Negociação"}
+      </h3>
       <div class="space-y-4">
         <div>
-          <label for="trade-ticker" class="text-xs text-white/60">{$Locales.ticker || "Ticker"}</label>
+          <label for="trade-ticker" class="text-sm font-medium text-white/90 mb-2 block">{$Locales.ticker || "Ticker"}</label>
           <select
             id="trade-ticker"
-            class="w-full bg-white/5 text-white rounded-lg px-3 py-2 mt-1 focus:outline-none"
+            class="w-full bg-black/40 text-white rounded-lg px-4 py-3 border-2 border-white/20 focus:outline-none focus:border-indigo-400 transition-colors appearance-none cursor-pointer hover:bg-black/50"
+            style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27white%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.5rem; padding-right: 2.5rem;"
             bind:value={selectedTicker}
           >
             {#each marketData.companies as company}
-              <option value={company.ticker}>{company.ticker} - {company.name}</option>
+              <option value={company.ticker} class="bg-gray-900 text-white py-2">{company.ticker} - {company.name}</option>
             {/each}
           </select>
         </div>
         <div>
-          <label for="trade-quantity" class="text-xs text-white/60">{$Locales.quantity || "Quantidade"}</label>
+          <label for="trade-quantity" class="text-sm font-medium text-white/90 mb-2 block">{$Locales.quantity || "Quantidade"}</label>
           <input
             id="trade-quantity"
             type="number"
             min="1"
-            class="w-full bg-white/5 text-white rounded-lg px-3 py-2 mt-1 focus:outline-none"
+            class="w-full bg-black/40 text-white rounded-lg px-4 py-3 border-2 border-white/20 focus:outline-none focus:border-indigo-400 transition-colors hover:bg-black/50"
+            placeholder="Ex: 10"
             bind:value={tradeQuantity}
           />
         </div>
-        <div class="flex items-center gap-3">
-          <button class="action-button flex-1" on:click={buyStock}>
-            <i class="fas fa-arrow-up"></i>
+        <div class="flex items-center gap-3 pt-2">
+          <button class="flex-1 bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500/50 text-white font-semibold rounded-lg px-4 py-3 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-green-500/20 flex items-center justify-center gap-2" on:click={buyStock}>
+            <i class="fas fa-arrow-trend-up"></i>
             <span>{$Locales.buy || "Comprar"}</span>
           </button>
-          <button class="action-button flex-1" on:click={sellStock}>
-            <i class="fas fa-arrow-down"></i>
+          <button class="flex-1 bg-red-500/20 hover:bg-red-500/30 border-2 border-red-500/50 text-white font-semibold rounded-lg px-4 py-3 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-red-500/20 flex items-center justify-center gap-2" on:click={sellStock}>
+            <i class="fas fa-arrow-trend-down"></i>
             <span>{$Locales.sell || "Vender"}</span>
           </button>
         </div>
@@ -572,17 +577,17 @@
       <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
         {#if portfolioData.stocks?.length}
           {#each portfolioData.stocks as stock}
-            <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+            <div class="flex items-center justify-between bg-gradient-to-r from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 rounded-xl px-4 py-3 border border-white/10 transition-all duration-200 hover:border-white/20">
               <div>
-                <p class="text-white font-semibold">{stock.ticker} - {stock.name}</p>
-                <p class="text-xs text-white/50">
+                <p class="text-white font-bold text-sm">{stock.ticker} - {stock.name}</p>
+                <p class="text-xs text-white/70">
                   {stock.quantity} {$Locales.shares || "ações"} • {$Locales.avg_price || "Preço médio"} {formatMoney(stock.purchasePrice)}
                 </p>
               </div>
               <div class={`text-right ${stock.gain >= 0 ? "text-green-400" : "text-red-400"}`}>
-                <p class="font-semibold">{formatMoney(stock.current)}</p>
-                <p class="text-xs">
-                  {formatMoney(stock.gain)} ({formatPercentShort(stock.gainPercent || 0)})
+                <p class="font-bold">{formatMoney(stock.current)}</p>
+                <p class="text-sm font-semibold">
+                  {stock.gain >= 0 ? "↑" : "↓"} {formatMoney(stock.gain)} ({formatPercentShort(stock.gainPercent || 0)})
                 </p>
               </div>
             </div>
@@ -603,13 +608,13 @@
       <div class="space-y-4 max-h-72 overflow-y-auto pr-2">
         {#if products.length}
           {#each products as product}
-            <div class="bg-white/5 rounded-xl p-4">
-              <div class="flex items-center justify-between mb-2">
+            <div class="bg-gradient-to-r from-white/10 to-white/5 border border-white/10 rounded-xl p-4 hover:from-white/15 hover:to-white/10 transition-all duration-200">
+              <div class="flex items-center justify-between mb-3">
                 <div>
-                  <p class="text-white font-semibold">{product.name}</p>
-                  <p class="text-xs text-white/50">{product.description}</p>
+                  <p class="text-white font-bold">{product.name}</p>
+                  <p class="text-xs text-white/70">{product.description}</p>
                 </div>
-                <span class="text-xs text-white/60">
+                <span class="text-xs text-white/80 bg-white/10 px-2 py-1 rounded-lg">
                   {$Locales.min || "Mín."}: {formatMoney(product.minInvestment)}
                 </span>
               </div>
@@ -617,17 +622,18 @@
                 <input
                   type="number"
                   min={product.minInvestment}
-                  class="flex-1 bg-white/10 text-white rounded-lg px-3 py-2 focus:outline-none"
+                  class="flex-1 bg-black/40 text-white rounded-lg px-3 py-2 border-2 border-white/20 focus:outline-none focus:border-green-400 transition-colors"
                   placeholder={$Locales.amount || "Valor"}
                   bind:value={investmentAmounts[product.id]}
                 />
-                <button class="action-button" on:click={() => invest(product.id)}>
+                <button class="bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500/50 text-white font-semibold rounded-lg px-4 py-2 transition-all duration-200 hover:scale-105 flex items-center gap-2" on:click={() => invest(product.id)}>
                   <i class="fas fa-coins"></i>
                   <span>{$Locales.invest || "Investir"}</span>
                 </button>
               </div>
-              <div class="text-xs text-white/50 mt-2">
-                {$Locales.liquidity || "Liquidez"}: {product.liquidity}
+              <div class="text-xs text-white/70 mt-2 flex items-center gap-2">
+                <i class="fas fa-clock text-blue-400"></i>
+                <span>{$Locales.liquidity || "Liquidez"}: {product.liquidity}</span>
               </div>
             </div>
           {/each}
