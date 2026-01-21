@@ -132,7 +132,7 @@ function LM.CalculateUnemployment()
   for _, src in ipairs(GetPlayers()) do
     local srcNum = tonumber(src)
     if srcNum and SE.Integrations then
-      local job = SE.Integrations.GetJob(srcNum)
+      local job = SE.Bridge.GetJob(srcNum)
       if job and job.name and job.name ~= 'unemployed' then
         employed = employed + 1
       end
@@ -147,7 +147,7 @@ function LM.CalculateUnemployment()
   for _, src in ipairs(GetPlayers()) do
     local srcNum = tonumber(src)
     if srcNum and SE.Integrations then
-      local job = SE.Integrations.GetJob(srcNum)
+      local job = SE.Bridge.GetJob(srcNum)
       if job and job.name then
         for _, sector in ipairs(Sectors) do
           if sector.id == job.name then
@@ -200,7 +200,7 @@ function LM.AdjustMinimumWage()
 
   -- Pegar inflação
   if SE.MonetaryPolicy then
-    inflationRate = exports.tiao_economia:GetMonthlyInflation() or 0
+    inflationRate = SE.MonetaryPolicy.GetMonthlyInflation() or 0
   end
 
   -- Pegar crescimento do PIB (simplificado)

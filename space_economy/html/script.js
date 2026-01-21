@@ -947,7 +947,6 @@
     // Treasury actions
     'treasury-deposit'() { this['quick-deposit'](); },
     'treasury-withdraw'() { this['quick-withdraw'](); },
-    'treasury-history'() { alert('Funcionalidade em desenvolvimento'); },
 
     // Logs
     'refresh-logs'() { Admin.requestData('admin_logs', { limit: 100 }); },
@@ -1122,6 +1121,10 @@
 
         if (mode === 'admin') {
           Admin.open(payload);
+        } else if (mode === 'tax') {
+          // Open admin panel directly on taxes view
+          Admin.open(payload);
+          UI.switchView('taxes');
         } else if (mode === 'payment') {
           State.payment.amount = Number(payload.tax || 0);
           State.payment.reason = String(payload.reason || '—');

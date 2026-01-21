@@ -558,7 +558,7 @@ function EM.UpdateIPCFromTransactions()
         local maxChange = cfg.MaxChangePerUpdate or 0.05
         change = math.max(-maxChange, math.min(maxChange, change))
 
-        exports.tiao_economia:AdjustIPCCategory(ipcCategory, change * 100)
+        SE.MonetaryPolicy.AdjustIPCCategory(ipcCategory, change * 100)
       end
 
       MonitorState.ipcPriceIndex[ipcCategory] = avgPrice

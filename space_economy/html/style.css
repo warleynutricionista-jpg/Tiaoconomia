@@ -929,10 +929,14 @@ tbody tr:hover {
 
 .chart-card {
   padding: var(--space-5);
+  max-height: 350px;
+  overflow: hidden;
 }
 
 .chart-card canvas {
   width: 100% !important;
+  max-height: 280px !important;
+  height: 280px !important;
 }
 
 .dashboard-icon {
