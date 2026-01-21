@@ -166,41 +166,61 @@ local function calculateCreditAge(data)
   return math.min(30, days / 3)               -- Proporcional
 end
 
+-- Cache para calculateCreditMix (evita queries repetidas)
+local creditMixCache = {}
+local CREDIT_MIX_CACHE_TTL = 300  -- 5 minutos
+
 -- Calcula score de mix de crédito (0-100)
 local function calculateCreditMix(citizenid)
+  -- Verificar cache primeiro
+  local cached = creditMixCache[citizenid]
+  if cached and (os.time() - cached.timestamp) < CREDIT_MIX_CACHE_TTL then
+    return cached.score
+  end
+
   -- Verifica tipos de crédito utilizados
   local types = {}
-  
-  -- Dívidas
-  local debts = MySQL.query.await([[
-    SELECT DISTINCT reason FROM space_economy_debts
+
+  -- Query única para pegar debts e loans
+  local result = MySQL.query.await([[
+    SELECT 'debt' as source, DISTINCT reason as type
+    FROM space_economy_debts
     WHERE citizenid = ? AND status IN ('active', 'paid')
     LIMIT 10
   ]], {citizenid}) or {}
-  
-  for _, d in ipairs(debts) do
-    types[d.reason] = true
+
+  for _, row in ipairs(result) do
+    types[row.type] = true
   end
-  
+
   -- Empréstimos (se existir)
   if SE.Loans then
-    local loans = MySQL.query.await([[
-      SELECT COUNT(*) as cnt FROM space_economy_loans
-      WHERE citizenid = ?
-    ]], {citizenid})
-    if loans and loans[1] and U.toInt(loans[1].cnt, 0) > 0 then
+    local loans = MySQL.scalar.await([[
+      SELECT COUNT(*) FROM space_economy_loans WHERE citizenid = ?
+    ]], {citizenid}) or 0
+
+    if U.toInt(loans, 0) > 0 then
       types['loan'] = true
     end
   end
-  
+
   local diversity = 0
   for _ in pairs(types) do diversity = diversity + 1 end
-  
-  if diversity >= 4 then return 100 end
-  if diversity >= 3 then return 75 end
-  if diversity >= 2 then return 50 end
-  if diversity >= 1 then return 25 end
-  return 0
+
+  local score = 0
+  if diversity >= 4 then score = 100
+  elseif diversity >= 3 then score = 75
+  elseif diversity >= 2 then score = 50
+  elseif diversity >= 1 then score = 25
+  end
+
+  -- Cachear resultado
+  creditMixCache[citizenid] = {
+    score = score,
+    timestamp = os.time()
+  }
+
+  return score
 end
 
 -- Calcula score de atividade recente (0-100)
@@ -263,6 +283,7 @@ function SE.CreditScore.Calculate(citizenid)
   local creditMix = calculateCreditMix(citizenid)
   local recentActivity = calculateRecentActivity(citizenid)
 
+  -- Buscar informações de dívida para ajuste do score
   local internalDebt = 0
   local externalDebt = 0
   local financingDebt = 0
@@ -296,17 +317,20 @@ function SE.CreditScore.Calculate(citizenid)
   local totalDebt = internalDebt + externalDebt + financingDebt
   local debtOverBank = totalDebt > bankBalance
 
-  -- Score total
+  -- Score base
   local totalScore = math.floor(
-    paymentHistory + 
-    debtRatio + 
-    creditAge + 
-    creditMix + 
+    paymentHistory +
+    debtRatio +
+    creditAge +
+    creditMix +
     recentActivity
   )
 
+  -- Penalidade por dívida acima do saldo bancário
   if debtOverBank then
-    totalScore = totalScore - 100
+    local penaltyPercent = math.min(0.5, (totalDebt - bankBalance) / math.max(1, bankBalance))
+    local penalty = math.floor(totalScore * penaltyPercent)
+    totalScore = totalScore - penalty
   end
   
   totalScore = math.max(0, math.min(1000, totalScore))

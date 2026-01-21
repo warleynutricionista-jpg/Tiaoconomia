@@ -775,14 +775,20 @@ CreateThread(function()
 
         if interest > 0 then
           local newAmount = amount + interest
-          MySQL.update.await([[
+          -- ATÔMICO: atualiza amount e last_interest_at em uma única query
+          local affected = MySQL.update.await([[
             UPDATE space_economy_debts
             SET amount = ?, last_interest_at = NOW()
-            WHERE id = ?
-          ]], { newAmount, d.id })
+            WHERE id = ? AND amount = ?
+          ]], { newAmount, d.id, amount })
 
-          dbg(('Juros aplicados: dívida %d | +%d = %d'):format(d.id, interest, newAmount))
-          logSys('juros', ('Juros aplicados: #%d +%d = %d'):format(d.id, interest, newAmount), { debt_id = d.id })
+          if affected and affected > 0 then
+            dbg(('Juros aplicados: dívida %d | +%d = %d'):format(d.id, interest, newAmount))
+            logSys('juros', ('Juros aplicados: #%d +%d = %d'):format(d.id, interest, newAmount), { debt_id = d.id })
+          else
+            -- Valor mudou entre SELECT e UPDATE (race condition), pular
+            dbg(('Juros ignorados: dívida %d valor alterado por outra thread'):format(d.id))
+          end
         else
           -- marca para não recalcular toda hora
           MySQL.update.await([[UPDATE space_economy_debts SET last_interest_at = NOW() WHERE id = ?]], { d.id })
@@ -844,11 +850,12 @@ CreateThread(function()
       local lastId = getCursor()
 
       -- pega transações novas com prefixo [SE#ID]
+      -- Usa REGEXP para evitar problemas com caracteres especiais em LIKE
       local rows = MySQL.query.await([[
         SELECT id, identifier, description, amount, date, isIncome, type
         FROM ps_banking_transactions
         WHERE id > ?
-          AND description LIKE '[SE#%]%'
+          AND description REGEXP '^\\[SE#[0-9]+\\]'
           AND amount > 0
         ORDER BY id ASC
         LIMIT 250

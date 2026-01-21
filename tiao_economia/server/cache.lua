@@ -415,7 +415,7 @@ function SE.Cache.Warmup()
 end
 
 --============================================================
--- Auto-Limpeza Otimizada (Background Thread)
+-- Auto-Limpeza Otimizada (Background Thread com Batch Processing)
 --============================================================
 CreateThread(function()
   while true do
@@ -423,25 +423,45 @@ CreateThread(function()
 
     local now = os.time()
     local cleaned = 0
+    local MAX_CLEAN_PER_CYCLE = 200  -- Limitar para evitar lag
 
     for category, store in pairs(CacheStore) do
       local ttl = Config.TTL[category] or Config.DefaultTTL
+      local cleanedThisCategory = 0
 
+      -- Coletar keys expiradas primeiro (não remover durante iteração)
+      local expiredKeys = {}
       for key, entry in pairs(store) do
         if (now - entry.timestamp) > ttl then
-          store[key] = nil
-          cleaned = cleaned + 1
+          expiredKeys[#expiredKeys + 1] = key
+        end
 
-          -- Remover do LRU também
-          local order = AccessOrder[category]
-          if order then
-            for i, k in ipairs(order) do
-              if k == key then
-                table.remove(order, i)
-                break
-              end
+        -- Limitar processamento para evitar lag
+        if #expiredKeys >= MAX_CLEAN_PER_CYCLE then
+          break
+        end
+      end
+
+      -- Remover keys expiradas
+      for _, key in ipairs(expiredKeys) do
+        store[key] = nil
+        cleaned = cleaned + 1
+        cleanedThisCategory = cleanedThisCategory + 1
+
+        -- Remover do LRU também
+        local order = AccessOrder[category]
+        if order then
+          for i, k in ipairs(order) do
+            if k == key then
+              table.remove(order, i)
+              break
             end
           end
+        end
+
+        -- Yield a cada 10 items para não bloquear
+        if cleanedThisCategory % 10 == 0 then
+          Wait(0)
         end
       end
     end
