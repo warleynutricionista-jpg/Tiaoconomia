@@ -986,7 +986,7 @@
     paySingleTax(taxId, amount, reason) {
       if (State.busy) return;
 
-      const tax = this.currentTaxes.find(t => String(t.id || t.debt_id) === String(taxId));
+      let tax = this.currentTaxes.find(t => String(t.id || t.debt_id) === String(taxId));
       if (!tax && taxId !== undefined) {
         // Try by index if ID not found
         const index = Number(taxId);
@@ -1066,6 +1066,131 @@
         UI.setBusy(false);
         LoadingIndicator.hide();
       });
+    },
+  };
+
+  // ===========================
+  // PLAYER LOANS MODULE
+  // ===========================
+  const PlayerLoans = {
+    lastSimulation: null,
+    simulationTimeout: null,
+
+    simulate() {
+      const amount = parsePositiveInt($('#player-loan-amount')?.value);
+      const installments = parsePositiveInt($('#player-loan-installments')?.value);
+      const purpose = String($('#player-loan-purpose')?.value || '').trim();
+
+      if (!amount || !installments) {
+        Notification.show('Informe o valor e as parcelas', 'error');
+        return;
+      }
+
+      LoadingIndicator.show('Simulando empréstimo...');
+      postNUI('simulateLoan', {
+        amount,
+        installments,
+        purpose,
+      })
+      .catch(() => {
+        LoadingIndicator.hide();
+      });
+
+      if (this.simulationTimeout) clearTimeout(this.simulationTimeout);
+      this.simulationTimeout = setTimeout(() => {
+        LoadingIndicator.hide();
+      }, 5000);
+    },
+
+    request() {
+      const amount = parsePositiveInt($('#player-loan-amount')?.value);
+      const installments = parsePositiveInt($('#player-loan-installments')?.value);
+      const purpose = String($('#player-loan-purpose')?.value || '').trim();
+
+      if (!amount || !installments) {
+        Notification.show('Informe o valor e as parcelas', 'error');
+        return;
+      }
+
+      LoadingIndicator.show('Enviando solicitação...');
+      postNUI('requestLoan', {
+        amount,
+        installments,
+        purpose,
+      })
+      .then(() => {
+        setTimeout(() => {
+          LoadingIndicator.hide();
+        }, 1200);
+      })
+      .catch(() => {
+        LoadingIndicator.hide();
+      });
+    },
+
+    renderSimulation(simulation = null) {
+      const resultContainer = $('#player-loan-simulation-result');
+      const detailsContainer = $('#player-loan-sim-details');
+
+      if (!resultContainer || !detailsContainer || !simulation) {
+        if (resultContainer) resultContainer.classList.add('hidden');
+        LoadingIndicator.hide();
+        return;
+      }
+
+      this.lastSimulation = simulation;
+      if (this.simulationTimeout) clearTimeout(this.simulationTimeout);
+
+      const termMonths = Number(simulation.termMonths || 0);
+      const approvalLabel = simulation.approved ? '✅ Pré-aprovado' : '⚠️ Avaliação pendente';
+
+      detailsContainer.innerHTML = `
+        <div class="info-item">
+          <span class="info-label">Valor Solicitado</span>
+          <span class="money">${formatMoney(simulation.amount || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Taxa de Juros (${formatDecimal(simulation.interestRatePercent || 0, 1)}% a.m.)</span>
+          <span class="money">${formatMoney(simulation.totalInterest || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Tarifa de abertura</span>
+          <span class="money">${formatMoney(simulation.originationFee || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Valor liberado</span>
+          <span class="money">${formatMoney(simulation.disbursedAmount || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Total a pagar</span>
+          <span class="money">${formatMoney(simulation.totalPayment || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Parcela mensal</span>
+          <span class="info-value">${formatMoney(simulation.monthlyPayment || 0)} × ${termMonths} meses</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Score de crédito</span>
+          <span class="info-value">${simulation.creditScore || 0} (${simulation.rating || '—'})</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Status</span>
+          <span class="info-value">${approvalLabel}</span>
+        </div>
+      `;
+
+      resultContainer.classList.remove('hidden');
+      LoadingIndicator.hide();
+    },
+
+    handleApproval(loanId, simulation) {
+      LoadingIndicator.hide();
+      if (loanId) {
+        Notification.show(`Empréstimo aprovado (#${loanId})`, 'success');
+      }
+      if (simulation) {
+        this.renderSimulation(simulation);
+      }
     },
   };
 
@@ -1155,6 +1280,8 @@
       Admin.requestData('player_tax_history', {});
     },
     'pay-all-taxes'() { PlayerTaxes.payAllTaxes(); },
+    'player-simulate-loan'() { PlayerLoans.simulate(); },
+    'player-request-loan'() { PlayerLoans.request(); },
 
     // Payment modal
     'confirm-payment'() {
@@ -1405,6 +1532,16 @@
 
         UI.setBusy(false);
         LoadingIndicator.hide();
+        break;
+      }
+
+      case 'loanSimulation': {
+        PlayerLoans.renderSimulation(data.simulation || data.sim || data);
+        break;
+      }
+
+      case 'loanApproved': {
+        PlayerLoans.handleApproval(data.loanId, data.simulation || data.sim);
         break;
       }
 
