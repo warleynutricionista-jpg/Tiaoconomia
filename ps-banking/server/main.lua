@@ -52,6 +52,76 @@ local function logTransaction(identifier, description, accountName, amount, isIn
 	)
 end
 
+local function getEconomyResource()
+	if GetResourceState("space_economy") == "started" then
+		return "space_economy"
+	end
+	if GetResourceState("tiao_economia") == "started" then
+		return "tiao_economia"
+	end
+	return nil
+end
+
+local function getEconomyExports()
+	local resource = getEconomyResource()
+	if resource then
+		return exports[resource]
+	end
+	return nil
+end
+
+local InvestmentProducts = {
+	{
+		id = "poupanca",
+		name = "Poupança",
+		description = "Rendimento mensal baseado na SELIC",
+		minInvestment = 100,
+		liquidity = "Imediata",
+	},
+	{
+		id = "cdb_30",
+		name = "CDB 30 dias",
+		description = "90% do CDI - Liquidez em 30 dias",
+		minInvestment = 5000,
+		liquidity = "30 dias",
+	},
+	{
+		id = "cdb_60",
+		name = "CDB 60 dias",
+		description = "100% do CDI - Liquidez em 60 dias",
+		minInvestment = 5000,
+		liquidity = "60 dias",
+	},
+	{
+		id = "cdb_90",
+		name = "CDB 90 dias",
+		description = "110% do CDI - Liquidez em 90 dias",
+		minInvestment = 10000,
+		liquidity = "90 dias",
+	},
+	{
+		id = "cdb_180",
+		name = "CDB 180 dias",
+		description = "120% do CDI - Liquidez em 180 dias",
+		minInvestment = 10000,
+		liquidity = "180 dias",
+	},
+	{
+		id = "lci",
+		name = "LCI/LCA",
+		description = "85% do CDI - Isento de IR",
+		minInvestment = 20000,
+		liquidity = "90 dias",
+	},
+	{
+		id = "tesouro",
+		name = "Tesouro SELIC",
+		description = "100% da SELIC - Liquidez imediata",
+		minInvestment = 1000,
+		liquidity = "Imediata",
+	},
+}
+
 -- Society Compat MRI
 local function exportHandler(exportName, func)
     AddEventHandler(('__cfx_export_%s_%s'):format('qb-banking', exportName), function(setCB)
@@ -225,6 +295,177 @@ lib.callback.register("ps-banking:server:getHistory", function(source)
 	local identifier = getPlayerIdentifier(xPlayer)
 	local result = MySQL.query.await("SELECT * FROM ps_banking_transactions WHERE identifier = ?", { identifier })
 	return result
+end)
+
+lib.callback.register("ps-banking:server:getInvestmentProducts", function()
+	local economy = getEconomyExports()
+	if not economy then
+		return { available = false, products = {} }
+	end
+	return { available = true, products = InvestmentProducts }
+end)
+
+lib.callback.register("ps-banking:server:getInvestments", function(source)
+	local economy = getEconomyExports()
+	if not economy or not economy.GetInvestments then
+		return { available = false, investments = {} }
+	end
+
+	local xPlayer = getPlayerFromId(source)
+	if not xPlayer then
+		return { available = false, investments = {} }
+	end
+	local identifier = getPlayerIdentifier(xPlayer)
+	local ok, investments = pcall(economy.GetInvestments, identifier)
+	if not ok then
+		return { available = false, investments = {} }
+	end
+
+	return { available = true, investments = investments or {} }
+end)
+
+lib.callback.register("ps-banking:server:invest", function(source, data)
+	local economy = getEconomyExports()
+	if not economy or not economy.Invest then
+		return { success = false, message = "Sistema econômico indisponível." }
+	end
+
+	local ok, result = pcall(economy.Invest, source, data.productId, data.amount)
+	if not ok or not result then
+		return { success = false, message = "Não foi possível investir." }
+	end
+	return { success = true, message = "Investimento aplicado com sucesso." }
+end)
+
+lib.callback.register("ps-banking:server:redeemInvestment", function(source, data)
+	local economy = getEconomyExports()
+	if not economy or not economy.RedeemInvestment then
+		return { success = false, message = "Sistema econômico indisponível." }
+	end
+
+	local ok, result = pcall(economy.RedeemInvestment, source, data.investmentId)
+	if not ok or not result then
+		return { success = false, message = "Não foi possível resgatar o investimento." }
+	end
+
+	return { success = true, message = "Resgate efetuado com sucesso." }
+end)
+
+lib.callback.register("ps-banking:server:getStockQuotes", function()
+	local economy = getEconomyExports()
+	if not economy or not economy.GetStockQuotes then
+		return { available = false, quotes = {} }
+	end
+
+	local ok, quotes = pcall(economy.GetStockQuotes)
+	if not ok then
+		return { available = false, quotes = {} }
+	end
+	return { available = true, quotes = quotes or {} }
+end)
+
+lib.callback.register("ps-banking:server:getStockPortfolio", function(source)
+	local economy = getEconomyExports()
+	if not economy or not economy.GetPortfolio then
+		return { available = false, portfolio = {} }
+	end
+
+	local xPlayer = getPlayerFromId(source)
+	if not xPlayer then
+		return { available = false, portfolio = {} }
+	end
+	local identifier = getPlayerIdentifier(xPlayer)
+	local ok, portfolio = pcall(economy.GetPortfolio, identifier)
+	if not ok then
+		return { available = false, portfolio = {} }
+	end
+
+	return { available = true, portfolio = portfolio or {} }
+end)
+
+lib.callback.register("ps-banking:server:buyStock", function(source, data)
+	local economy = getEconomyExports()
+	if not economy or not economy.BuyStock then
+		return { success = false, message = "Sistema econômico indisponível." }
+	end
+
+	local ok, result = pcall(economy.BuyStock, source, data.ticker, data.quantity)
+	if not ok or not result then
+		return { success = false, message = "Não foi possível comprar ações." }
+	end
+
+	return { success = true, message = "Compra realizada com sucesso." }
+end)
+
+lib.callback.register("ps-banking:server:sellStock", function(source, data)
+	local economy = getEconomyExports()
+	if not economy or not economy.SellStock then
+		return { success = false, message = "Sistema econômico indisponível." }
+	end
+
+	local ok, result = pcall(economy.SellStock, source, data.ticker, data.quantity)
+	if not ok or not result then
+		return { success = false, message = "Não foi possível vender ações." }
+	end
+
+	return { success = true, message = "Venda realizada com sucesso." }
+end)
+
+lib.callback.register("ps-banking:server:getEconomyIndicators", function()
+	local economy = getEconomyExports()
+	if not economy then
+		return { available = false, indicators = {} }
+	end
+
+	local function safeCall(fn, ...)
+		if not fn then return nil end
+		local ok, result = pcall(fn, ...)
+		if ok then return result end
+		return nil
+	end
+
+	local indicators = {
+		selic = safeCall(economy.GetSELIC) or 0,
+		inflation = safeCall(economy.GetInflation) or 0,
+		pib = safeCall(economy.GetPIB) or 0,
+		circulation = safeCall(economy.GetMoneyCirculation) or 0,
+		velocity = safeCall(economy.GetVelocity) or 0,
+	}
+
+	return { available = true, indicators = indicators }
+end)
+
+lib.callback.register("ps-banking:server:getDebts", function(source)
+	local economy = getEconomyExports()
+	if not economy or not economy.GetActiveDebtsByCitizen then
+		return { available = false, debts = {} }
+	end
+
+	local xPlayer = getPlayerFromId(source)
+	if not xPlayer then
+		return { available = false, debts = {} }
+	end
+	local identifier = getPlayerIdentifier(xPlayer)
+	local ok, debts = pcall(economy.GetActiveDebtsByCitizen, identifier, 50)
+	if not ok then
+		return { available = false, debts = {} }
+	end
+
+	return { available = true, debts = debts or {} }
+end)
+
+lib.callback.register("ps-banking:server:payDebt", function(source, data)
+	local economy = getEconomyExports()
+	if not economy or not economy.PayDebt then
+		return { success = false, message = "Sistema econômico indisponível." }
+	end
+
+	local ok, success, remaining = pcall(economy.PayDebt, source, data.debtId, data.amount)
+	if not ok or not success then
+		return { success = false, message = "Não foi possível quitar a dívida." }
+	end
+
+	return { success = true, remaining = remaining }
 end)
 
 lib.callback.register("ps-banking:server:deleteHistory", function(source)

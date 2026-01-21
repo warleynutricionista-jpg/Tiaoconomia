@@ -362,6 +362,61 @@ RegisterNUICallback("ps-banking:client:getMoneyTypes", function(data, cb)
     cb(moneyData)
 end)
 
+RegisterNUICallback("ps-banking:client:getInvestmentProducts", function(_, cb)
+    local response = lib.callback.await("ps-banking:server:getInvestmentProducts", false)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:getInvestments", function(_, cb)
+    local response = lib.callback.await("ps-banking:server:getInvestments", false)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:invest", function(data, cb)
+    local response = lib.callback.await("ps-banking:server:invest", false, data)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:redeemInvestment", function(data, cb)
+    local response = lib.callback.await("ps-banking:server:redeemInvestment", false, data)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:getStockQuotes", function(_, cb)
+    local response = lib.callback.await("ps-banking:server:getStockQuotes", false)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:getStockPortfolio", function(_, cb)
+    local response = lib.callback.await("ps-banking:server:getStockPortfolio", false)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:buyStock", function(data, cb)
+    local response = lib.callback.await("ps-banking:server:buyStock", false, data)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:sellStock", function(data, cb)
+    local response = lib.callback.await("ps-banking:server:sellStock", false, data)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:getEconomyIndicators", function(_, cb)
+    local response = lib.callback.await("ps-banking:server:getEconomyIndicators", false)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:getDebts", function(_, cb)
+    local response = lib.callback.await("ps-banking:server:getDebts", false)
+    cb(response)
+end)
+
+RegisterNUICallback("ps-banking:client:payDebt", function(data, cb)
+    local response = lib.callback.await("ps-banking:server:payDebt", false, data)
+    cb(response)
+end)
+
 RegisterNUICallback("ps-banking:client:getAmountPresets", function(_, cb)
     cb(json.encode({
         withdrawAmounts = Config.PresetATM_Amounts.Amounts,

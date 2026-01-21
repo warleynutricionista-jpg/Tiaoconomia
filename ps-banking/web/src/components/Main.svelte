@@ -10,6 +10,7 @@
   import IndseatPage from "./Indseat.svelte";
   import StatsPage from "./Stats.svelte";
   import AccountsPage from "./Accounts.svelte";
+  import InvestmentsPage from "./Investments.svelte";
   import { slide, fade, scale } from "svelte/transition";
   import { quintOut, cubicOut } from "svelte/easing";
   import {
@@ -20,6 +21,7 @@
     showIndseat,
     showStats,
     showAccounts,
+    showInvestments,
     Locales,
     bankBalance,
     currentCash,
@@ -65,6 +67,7 @@
     { key: 'overview', icon: 'house', label: 'overview' },
     { key: 'bills', icon: 'file-invoice', label: 'bills' },
     { key: 'history', icon: 'clock-rotate-left', label: 'history' },
+    { key: 'investments', icon: 'chart-line', label: 'investments' },
     { key: 'withdraw', icon: 'arrow-down', label: 'withdraw' },
     { key: 'deposit', icon: 'arrow-up', label: 'deposit' },
     { key: 'accounts', icon: 'piggy-bank', label: 'accounts' }
@@ -79,6 +82,7 @@
     showIndseat.set(false);
     showStats.set(false);
     showAccounts.set(false);
+    showInvestments.set(false);
 
     // Then set the active view
     activeView.set(view);
@@ -93,6 +97,9 @@
         break;
       case 'history':
         showHistory.set(true);
+        break;
+      case 'investments':
+        showInvestments.set(true);
         break;
       case 'withdraw':
         showHeav.set(true);
@@ -235,6 +242,10 @@
           {:else if $showAccounts}
             <div in:fade={{ duration: 150 }} out:fade={{ duration: 75 }}>
               <AccountsPage />
+            </div>
+          {:else if $showInvestments}
+            <div in:fade={{ duration: 150 }} out:fade={{ duration: 75 }}>
+              <InvestmentsPage />
             </div>
           {/if}
         </div>
