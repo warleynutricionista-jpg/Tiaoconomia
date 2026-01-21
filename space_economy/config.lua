@@ -458,7 +458,7 @@ Config.UI = {
   -- Keybinds padrão
   Keybinds = {
     OpenTax = 'F7',
-    OpenAdmin = 'F9',
+    OpenAdmin = 'F12',
   },
   
   -- Temas (futuro)
