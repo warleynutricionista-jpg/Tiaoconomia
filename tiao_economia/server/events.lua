@@ -490,6 +490,31 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
 
       return SendAdminPacket(src, dataType, { result = result }, true)
 
+    --========================
+    -- Issue Tax Debt
+    --========================
+    elseif dataType == 'admin_issueTaxDebt' then
+      if not (SE.Admin and SE.Admin.IssueTaxDebt) then
+        return SendAdminPacket(src, 'error', { message = 'Função de tributos indisponível.' }, false)
+      end
+
+      local success, message = SE.Admin.IssueTaxDebt(src, payload)
+      if not success then
+        return SendAdminPacket(src, 'error', { message = message or 'Falha ao lançar tributo.' }, false)
+      end
+
+      if SE.Discord and SE.Discord.AdminAction then
+        SE.Discord.AdminAction(src, 'Lançar Tributo', {
+          targetMode = payload.targetMode,
+          citizenid = payload.citizenid,
+          type = payload.type,
+          amount = payload.amount,
+          reason = payload.reason,
+        })
+      end
+
+      return SendAdminPacket(src, dataType, { message = message or 'Tributo lançado com sucesso!' }, true)
+
     else
       return SendAdminPacket(src, 'error', { message = ('Ação não suportada: %s'):format(dataType) }, false)
     end

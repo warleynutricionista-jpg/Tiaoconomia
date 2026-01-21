@@ -134,20 +134,45 @@
   // LOADING INDICATOR
   // ===========================
   const LoadingIndicator = {
+    timeoutId: null,
+
     show(message = 'Processando...') {
       State.pendingRequests++;
       const indicator = $('#loading-overlay') || this.create();
       const msgEl = indicator.querySelector('.loading-message');
       if (msgEl) msgEl.textContent = message;
       indicator.style.display = 'flex';
+
+      // Safety timeout: auto-hide after 30 seconds
+      if (this.timeoutId) clearTimeout(this.timeoutId);
+      this.timeoutId = setTimeout(() => {
+        console.warn('[LoadingIndicator] Timeout reached - forcing hide');
+        this.forceHide();
+      }, 30000);
     },
 
     hide() {
       State.pendingRequests = Math.max(0, State.pendingRequests - 1);
       if (State.pendingRequests === 0) {
+        if (this.timeoutId) {
+          clearTimeout(this.timeoutId);
+          this.timeoutId = null;
+        }
         const indicator = $('#loading-overlay');
         if (indicator) indicator.style.display = 'none';
       }
+    },
+
+    forceHide() {
+      if (this.timeoutId) {
+        clearTimeout(this.timeoutId);
+        this.timeoutId = null;
+      }
+      State.pendingRequests = 0;
+      UI.setBusy(false);
+      const indicator = $('#loading-overlay');
+      if (indicator) indicator.style.display = 'none';
+      Notification.show('Operação expirou. Tente novamente.', 'error');
     },
 
     create() {
@@ -503,6 +528,8 @@
         const preview = $('#tax-preview');
         if (preview) preview.classList.add('hidden');
 
+        UI.setBusy(false);
+        LoadingIndicator.hide();
         Notification.show('Tributo lançado com sucesso!', 'success');
       })
       .catch(() => {
@@ -523,6 +550,8 @@
       })
       .then(() => {
         UI.setDirty(false);
+        UI.setBusy(false);
+        LoadingIndicator.hide();
         Notification.show('Configurações salvas com sucesso!', 'success');
       })
       .catch(() => {
@@ -536,6 +565,10 @@
       UI.setBusy(true);
       LoadingIndicator.show('Carregando dados...');
       postNUI('admin_requestData', { dataType, payload })
+      .then(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      })
       .catch(() => {
         UI.setBusy(false);
         LoadingIndicator.hide();
@@ -931,6 +964,8 @@
       LoadingIndicator.show('Processando pagamento...');
       postNUI('payTax', { tax: State.payment.amount, reason: State.payment.reason })
       .then(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
         Notification.show('Pagamento realizado com sucesso!', 'success');
         UI.close();
       })
