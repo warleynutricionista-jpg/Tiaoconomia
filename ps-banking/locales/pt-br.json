@@ -304,5 +304,15 @@
   "due_date": "Vencimento",
   "original": "Original",
   "integration_unavailable": "Integração indisponível",
-  "integration_unavailable_desc": "O sistema econômico não está ativo no momento."
+  "integration_unavailable_desc": "O sistema econômico não está ativo no momento.",
+  "quick_amounts": "Valores rápidos",
+  "transfer": "Transferência",
+  "transfer_target": "Destino",
+  "enter_recipient": "Digite o ID ou telefone",
+  "transfer_amount": "Valor da transferência",
+  "send_transfer": "Enviar transferência",
+  "recent_transactions": "Últimas movimentações",
+  "no_recent_transactions": "Nenhuma transação recente.",
+  "refresh": "Atualizar",
+  "atm_transfer_tip": "Envie transferências rápidas."
 }

@@ -298,5 +298,15 @@
   "due_date": "Due date",
   "original": "Original",
   "integration_unavailable": "Integration unavailable",
-  "integration_unavailable_desc": "The economic system is not active right now."
+  "integration_unavailable_desc": "The economic system is not active right now.",
+  "quick_amounts": "Quick amounts",
+  "transfer": "Transfer",
+  "transfer_target": "Recipient",
+  "enter_recipient": "Enter ID or phone",
+  "transfer_amount": "Transfer amount",
+  "send_transfer": "Send transfer",
+  "recent_transactions": "Recent transactions",
+  "no_recent_transactions": "No recent transactions.",
+  "refresh": "Refresh",
+  "atm_transfer_tip": "Send quick transfers."
 }
