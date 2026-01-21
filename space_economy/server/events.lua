@@ -156,6 +156,37 @@ local function Num(v, d)
   return v
 end
 
+local function decodeMeta(meta)
+  if not meta then return nil end
+  if U and U.safeJsonDecode then
+    return U.safeJsonDecode(meta)
+  end
+  if json and json.decode then
+    local ok, decoded = pcall(function() return json.decode(meta) end)
+    if ok and type(decoded) == 'table' then return decoded end
+  end
+  return nil
+end
+
+local function resolveTaxType(reason, meta)
+  local metaType = meta and (meta.tax_type or meta.type)
+  if metaType and tostring(metaType) ~= '' then
+    return tostring(metaType)
+  end
+
+  local upper = string.upper(tostring(reason or ''))
+  local known = { 'IPTU', 'IPVA', 'ICMS', 'ISS', 'IR', 'IGF', 'IOF' }
+  for _, key in ipairs(known) do
+    if upper:find(key, 1, true) then
+      return key
+    end
+  end
+
+  if upper:find('MULTA') then return 'MULTA' end
+
+  return 'IMPOSTO'
+end
+
 --============================================================
 -- Abertura de painéis
 --============================================================
@@ -527,12 +558,19 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       local taxes = {}
       if HasMySQL() then
         taxes = MySQL.query.await([[
-          SELECT id, citizenid, amount, reason, type, status, due_date, created_at
+          SELECT id, citizenid, amount, reason, status, due_at AS due_date, created_at, meta
           FROM space_economy_debts
           WHERE citizenid = ? AND status IN ('active', 'pending')
           ORDER BY created_at DESC
           LIMIT 50
         ]], { citizenid }) or {}
+      end
+
+      for _, tax in ipairs(taxes) do
+        local meta = decodeMeta(tax.meta)
+        local taxType = resolveTaxType(tax.reason, meta)
+        tax.type = taxType
+        tax.tax_type = taxType
       end
 
       return SendAdminPacket(src, dataType, { taxes = taxes }, true)
@@ -546,12 +584,19 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       local history = {}
       if HasMySQL() then
         history = MySQL.query.await([[
-          SELECT id, amount, reason, type, status, timestamp, created_at
+          SELECT id, amount, reason, status, paid_at AS timestamp, created_at, meta
           FROM space_economy_debts
           WHERE citizenid = ? AND status IN ('paid', 'cancelled')
           ORDER BY created_at DESC
           LIMIT 100
         ]], { citizenid }) or {}
+      end
+
+      for _, item in ipairs(history) do
+        local meta = decodeMeta(item.meta)
+        local taxType = resolveTaxType(item.reason, meta)
+        item.type = taxType
+        item.tax_type = taxType
       end
 
       return SendAdminPacket(src, dataType, { history = history }, true)

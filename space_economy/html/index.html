@@ -524,6 +524,38 @@
             </table>
           </div>
         </div>
+
+        <!-- Loan Request -->
+        <div class="panel" style="margin-top: 1.5rem;">
+          <div class="panel-header">
+            <h3 class="panel-title">Solicitar Empréstimo</h3>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Valor</label>
+              <input type="number" id="player-loan-amount" class="form-input" placeholder="Valor do empréstimo">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Parcelas</label>
+              <input type="number" id="player-loan-installments" class="form-input" placeholder="Número de parcelas" value="12">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Finalidade (opcional)</label>
+            <input type="text" id="player-loan-purpose" class="form-input" placeholder="Ex: Reforma do imóvel">
+          </div>
+
+          <div id="player-loan-simulation-result" class="panel hidden mt-4">
+            <div class="info-list" id="player-loan-sim-details"></div>
+          </div>
+
+          <div class="panel-actions">
+            <button class="btn btn-secondary" data-action="player-simulate-loan">Simular</button>
+            <button class="btn btn-primary" data-action="player-request-loan">Solicitar</button>
+          </div>
+        </div>
       </div>
 
       <footer class="card-actions">

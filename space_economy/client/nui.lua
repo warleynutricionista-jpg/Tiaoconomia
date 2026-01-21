@@ -171,3 +171,37 @@ RegisterNUICallback('washMoney', function(data, cb)
   )
   cb({ ok = true })
 end)
+
+-- empréstimos (player)
+RegisterNUICallback('simulateLoan', function(data, cb)
+  TriggerServerEvent('space_economy:server_simulateLoan',
+    data and data.amount,
+    data and data.installments,
+    data and data.purpose
+  )
+  cb({ ok = true })
+end)
+
+RegisterNUICallback('requestLoan', function(data, cb)
+  TriggerServerEvent('space_economy:server_requestLoan',
+    data and data.amount,
+    data and data.installments,
+    data and data.purpose
+  )
+  cb({ ok = true })
+end)
+
+RegisterNetEvent('space_economy:client_loanSimulation', function(simulation)
+  SendNUIMessage({
+    action = 'loanSimulation',
+    simulation = simulation
+  })
+end)
+
+RegisterNetEvent('space_economy:client_loanApproved', function(loanId, simulation)
+  SendNUIMessage({
+    action = 'loanApproved',
+    loanId = loanId,
+    simulation = simulation
+  })
+end)
