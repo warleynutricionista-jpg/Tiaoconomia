@@ -201,16 +201,14 @@ local function getAssetTotals(tableName, priceColumnCandidates)
   local cols = columnsOf(tableName)
   local priceColumn = pickColumn(cols, priceColumnCandidates)
 
-  -- Se não encontrar coluna de preço, retorna vazio
+  -- Se não encontrar coluna de preço, retorna vazio (silenciosamente, pois é esperado)
   if not priceColumn then
-    print('^3[wealth_tax]^7 Aviso: Nenhuma coluna de preço encontrada em ' .. tableName)
     return {}
   end
 
   -- Verifica se tem coluna citizenid
-  local citizenCol = pickColumn(cols, {'citizenid', 'owner', 'identifier'})
+  local citizenCol = pickColumn(cols, {'citizenid', 'owner', 'identifier', 'owner_citizenid'})
   if not citizenCol then
-    print('^3[wealth_tax]^7 Aviso: Nenhuma coluna de cidadão encontrada em ' .. tableName)
     return {}
   end
 
