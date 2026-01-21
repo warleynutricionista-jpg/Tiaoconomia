@@ -22,13 +22,13 @@ Config.Currency = {
 -- Security settings
 Config.Security = {
     EnableTransferLimits = true, -- Enable daily transfer limits
-    DailyTransferLimit = 1000000, -- Maximum amount that can be transferred per day
-    MaxTransferAmount = 500000, -- Maximum amount per single transfer
-    MinTransferAmount = 1, -- Minimum amount per transfer
-    MaxWithdrawAmount = 100000, -- Maximum ATM withdrawal amount
-    MinWithdrawAmount = 1, -- Minimum ATM withdrawal amount
-    MaxDepositAmount = 500000, -- Maximum ATM deposit amount
-    MinDepositAmount = 1, -- Minimum ATM deposit amount
+    DailyTransferLimit = 5000000, -- R$ 5.000.000 - Limite diário de transferências
+    MaxTransferAmount = 1000000, -- R$ 1.000.000 - Valor máximo por transferência
+    MinTransferAmount = 1, -- R$ 1 - Valor mínimo por transferência
+    MaxWithdrawAmount = 500000, -- R$ 500.000 - Saque máximo no caixa eletrônico
+    MinWithdrawAmount = 1, -- R$ 1 - Saque mínimo
+    MaxDepositAmount = 1000000, -- R$ 1.000.000 - Depósito máximo no caixa
+    MinDepositAmount = 1, -- R$ 1 - Depósito mínimo
     EnableAuditLog = true, -- Enable audit logging
     RequireOnlineForBills = true, -- Require target player to be online to send bills
 }
@@ -95,8 +95,8 @@ Config.ATM_Models = {
 
 -- Bills settings
 Config.Bills = {
-    MaxBillAmount = 1000000, -- Maximum bill amount
-    MinBillAmount = 1, -- Minimum bill amount
+    MaxBillAmount = 5000000, -- R$ 5.000.000 - Valor máximo de fatura
+    MinBillAmount = 1, -- R$ 1 - Valor mínimo de fatura
     EnableDueDates = true, -- Enable due dates for bills
     DefaultDueDays = 7, -- Default days until bill is due
 }
