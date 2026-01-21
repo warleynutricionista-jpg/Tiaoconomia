@@ -251,11 +251,29 @@
 <div class="h-full flex flex-col p-8 overflow-y-auto">
   <!-- Page Header -->
   <div class="flex items-center justify-between mb-8">
-    <div>
+    <div class="animate-fade-in">
       <h1 class="text-3xl font-bold text-white mb-2">{$Locales.overview}</h1>
       <p class="text-white/60">{$Locales.financial_summary_quick_actions}</p>
     </div>
     <div class="flex items-center space-x-4">
+      <!-- Balance Card -->
+      <div class="modern-card px-6 py-3 animate-scale-in">
+        <div class="flex items-center space-x-3">
+          <div class="flex flex-col">
+            <span class="text-xs text-white/50">{$Locales.bank_balance}</span>
+            <span class="text-lg font-bold text-green-400">
+              {$bankBalance.toLocaleString($Currency.lang, {
+                style: "currency",
+                currency: $Currency.currency,
+                minimumFractionDigits: 0,
+              })}
+            </span>
+          </div>
+          <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+            <i class="fas fa-wallet text-green-400 animate-pulse-soft"></i>
+          </div>
+        </div>
+      </div>
       <div class="modern-card px-4 py-2">
         <div class="flex items-center space-x-2">
           <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -268,31 +286,31 @@
   <!-- Quick Actions Grid -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Transfer Money -->
-    <div class="modern-card modern-card-hover p-6 group cursor-pointer" on:click={openModal}>
+    <div class="modern-card modern-card-hover p-6 group cursor-pointer animate-slide-up" on:click={openModal}>
       <div class="flex items-center justify-between mb-4">
-        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-          <i class="fas fa-exchange-alt text-blue-400 text-xl"></i>
+        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/30 group-hover:scale-110 transition-all duration-300">
+          <i class="fas fa-exchange-alt text-blue-400 text-xl group-hover:animate-pulse"></i>
         </div>
-        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 transition-colors"></i>
+        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 group-hover:translate-x-1 transition-all"></i>
       </div>
       <h3 class="text-lg font-semibold text-white mb-2">{$Locales.transfer_money}</h3>
       <p class="text-sm text-white/60">{$Locales.easy_transfer}</p>
     </div>
 
     <!-- Pay Bills -->
-    <div class="modern-card modern-card-hover p-6 group cursor-pointer" on:click={() => showSureModalBills.set(true)}>
+    <div class="modern-card modern-card-hover p-6 group cursor-pointer animate-slide-up" style="animation-delay: 0.1s" on:click={() => showSureModalBills.set(true)}>
       <div class="flex items-center justify-between mb-4">
-        <div class="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
-          <i class="fas fa-file-invoice-dollar text-orange-400 text-xl"></i>
+        <div class="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center group-hover:bg-orange-500/30 group-hover:scale-110 transition-all duration-300">
+          <i class="fas fa-file-invoice-dollar text-orange-400 text-xl group-hover:animate-pulse"></i>
         </div>
-        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 transition-colors"></i>
+        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 group-hover:translate-x-1 transition-all"></i>
       </div>
       <h3 class="text-lg font-semibold text-white mb-2">{$Locales.pay_bills}</h3>
       <p class="text-sm text-white/60">{$Locales.pay_pending_bills}</p>
     </div>
 
     <!-- Withdraw -->
-    <div class="modern-card modern-card-hover p-6 group cursor-pointer" on:click={() => {
+    <div class="modern-card modern-card-hover p-6 group cursor-pointer animate-slide-up" style="animation-delay: 0.2s" on:click={() => {
       if ($bankBalance <= 0) {
         Notify($Locales.no_money_on_account, $Locales.error, "credit-card");
       } else {
@@ -301,17 +319,17 @@
       }
     }}>
       <div class="flex items-center justify-between mb-4">
-        <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center group-hover:bg-red-500/30 transition-colors">
-          <i class="fas fa-arrow-down text-red-400 text-xl"></i>
+        <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center group-hover:bg-red-500/30 group-hover:scale-110 transition-all duration-300">
+          <i class="fas fa-arrow-down text-red-400 text-xl group-hover:animate-bounce-soft"></i>
         </div>
-        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 transition-colors"></i>
+        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 group-hover:translate-x-1 transition-all"></i>
       </div>
       <h3 class="text-lg font-semibold text-white mb-2">{$Locales.withdraw_all_money}</h3>
       <p class="text-sm text-white/60">{$Locales.withdraw_all_from_account}</p>
     </div>
 
     <!-- Deposit -->
-    <div class="modern-card modern-card-hover p-6 group cursor-pointer" on:click={() => {
+    <div class="modern-card modern-card-hover p-6 group cursor-pointer animate-slide-up" style="animation-delay: 0.3s" on:click={() => {
       if ($currentCash <= 0) {
         Notify($Locales.no_cash_on_you, $Locales.error, "coins");
       } else {
@@ -320,10 +338,10 @@
       }
     }}>
       <div class="flex items-center justify-between mb-4">
-        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-          <i class="fas fa-arrow-up text-green-400 text-xl"></i>
+        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center group-hover:bg-green-500/30 group-hover:scale-110 transition-all duration-300">
+          <i class="fas fa-arrow-up text-green-400 text-xl group-hover:animate-bounce-soft"></i>
         </div>
-        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 transition-colors"></i>
+        <i class="fas fa-arrow-right text-white/30 group-hover:text-white/60 group-hover:translate-x-1 transition-all"></i>
       </div>
       <h3 class="text-lg font-semibold text-white mb-2">{$Locales.deposit_cash}</h3>
       <p class="text-sm text-white/60">{$Locales.deposit_all_cash}</p>
@@ -514,21 +532,21 @@
 
 <!-- Transfer Modal -->
 {#if $showTransferModal}
-  <div class="modal-backdrop fixed inset-0 flex items-center justify-center z-50">
+  <div class="modal-backdrop fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm">
     <div
-      class="modern-card p-8 w-full max-w-md mx-4"
+      class="modern-card p-8 w-full max-w-md mx-4 shadow-brasil animate-bounce-in"
       in:scale={{ duration: 300, easing: quintOut }}
       out:scale={{ duration: 250, easing: quintOut }}
     >
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center space-x-3">
-          <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-            <i class="fas fa-exchange-alt text-blue-400 text-xl"></i>
+          <div class="w-12 h-12 bg-gradient-to-br from-green-500/30 to-blue-500/30 rounded-xl flex items-center justify-center animate-glow-brasil">
+            <i class="fas fa-exchange-alt text-green-400 text-xl"></i>
           </div>
           <h2 class="text-2xl font-bold text-white">{$Locales.transfer_money}</h2>
         </div>
         <button
-          class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+          class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 hover:rotate-90 transition-all"
           on:click={closeModal}
         >
           <i class="fas fa-times text-white/60"></i>
@@ -604,33 +622,51 @@
       <!-- Amount Input -->
       <div class="mb-6">
         <label class="block text-gray-400 mb-2">
-          <i class="fa-duotone fa-money-bill-wave text-blue-400 mr-2"
-          ></i>{$Locales.amount}
+          <i class="fa-duotone fa-money-bill-wave text-green-400 mr-2"></i>{$Locales.amount}
         </label>
-        <div class="relative">
+        <div class="relative group">
           <input
             type="number"
             min="1"
-            class="w-full p-3 bg-gray-700/50 text-white pr-10 border border-blue-200/10 rounded-lg focus:outline-none
-            focus:border-blue-400/50 transition-colors duration-500"
+            max={$bankBalance}
+            class="w-full p-3 bg-white/5 text-white pr-10 border-2 border-white/10 rounded-lg focus:outline-none
+            focus:border-green-500/50 focus:shadow-neon-green transition-all duration-300 hover:border-white/20"
+            placeholder="0.00"
             bind:value={$transferData.amount}
           />
-          <i
-            class="fa-duotone fa-dollar-sign absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400"
-          ></i>
+          <div class="absolute top-1/2 right-3 transform -translate-y-1/2 flex items-center space-x-2">
+            <span class="text-xs text-white/50">R$</span>
+            <i class="fa-solid fa-brazilian-real-sign text-green-400"></i>
+          </div>
+        </div>
+        <div class="mt-2 flex justify-between text-xs">
+          <span class="text-white/50">{$Locales.available}: {$bankBalance.toLocaleString($Currency.lang, {
+            style: "currency",
+            currency: $Currency.currency,
+            minimumFractionDigits: 0,
+          })}</span>
+          {#if $transferData.amount > $bankBalance}
+            <span class="text-red-400 animate-pulse">Saldo insuficiente!</span>
+          {:else if $transferData.amount > 0}
+            <span class="text-green-400">✓ Valor válido</span>
+          {/if}
         </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex justify-between items-center mt-6">
+      <div class="flex gap-3 mt-6">
         <button
-          class="flex items-center bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded focus:outline-none"
+          class="flex-1 flex items-center justify-center bg-red-500/20 border-2 border-red-500/30 hover:bg-red-500/30 hover:border-red-500/50
+                 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
           on:click={closeModal}
         >
-          <i class="fa-duotone fa-times-circle mr-2"></i>{$Locales.cancel}
+          <i class="fa-solid fa-times-circle mr-2"></i>{$Locales.cancel}
         </button>
         <button
-          class="flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded focus:outline-none"
+          class="flex-1 flex items-center justify-center bg-gradient-to-r from-green-500/20 to-blue-500/20 border-2 border-green-500/30
+                 hover:from-green-500/30 hover:to-blue-500/30 hover:border-green-500/50 text-white py-3 px-4 rounded-xl font-semibold
+                 transition-all duration-300 hover:scale-105 hover:shadow-neon-green disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!$transferData.contactType || $transferData.amount <= 0 || $transferData.amount > $bankBalance || !$transferData.idOrPhone}
           on:click={async () => {
             confirmTransfer(
               $transferData.idOrPhone,
@@ -639,42 +675,44 @@
             );
           }}
         >
-          <i class="fa-duotone fa-check-circle mr-2"></i>{$Locales.confirm}
+          <i class="fa-solid fa-check-circle mr-2 animate-pulse-soft"></i>{$Locales.confirm}
         </button>
       </div>
     </div>
   </div>
 {/if}
 {#if $showSureModalBills}
-  <div
-    class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
-  >
+  <div class="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
     <div
-      class="bg-gray-700 p-8 rounded-lg shadow-lg w-96"
+      class="modern-card p-8 w-96 shadow-money animate-bounce-in"
       in:scale={{ duration: 250, easing: quintOut }}
       out:scale={{ duration: 250, easing: quintOut }}
     >
       <div class="flex items-center mb-4">
-        <i class="fa-duotone fa-question-circle text-3xl text-blue-400 mr-3"
-        ></i>
-        <h2 class="text-2xl text-blue-200 font-bold">
+        <div class="w-14 h-14 bg-orange-500/20 rounded-xl flex items-center justify-center mr-3">
+          <i class="fa-solid fa-question-circle text-3xl text-orange-400 animate-pulse-soft"></i>
+        </div>
+        <h2 class="text-2xl text-white font-bold">
           {$Locales.are_you_sure}
         </h2>
       </div>
-      <p class="text-gray-300 mb-6">
+      <p class="text-white/70 mb-6 leading-relaxed">
         {$Locales.confirm_pay_all_bills}
       </p>
-      <div class="flex justify-between items-center">
+      <div class="flex gap-3">
         <button
-          class="flex items-center bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded focus:outline-none"
+          class="flex-1 flex items-center justify-center bg-red-500/20 border-2 border-red-500/30 hover:bg-red-500/30 hover:border-red-500/50
+                 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
           on:click={() => {
             showSureModalBills.set(false);
           }}
         >
-          <i class="fa-duotone fa-times-circle mr-2"></i>{$Locales.cancel}
+          <i class="fa-solid fa-times-circle mr-2"></i>{$Locales.cancel}
         </button>
         <button
-          class="flex items-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded focus:outline-none"
+          class="flex-1 flex items-center justify-center bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border-2 border-orange-500/30
+                 hover:from-orange-500/30 hover:to-yellow-500/30 hover:border-orange-500/50 text-white py-3 px-4 rounded-xl font-semibold
+                 transition-all duration-300 hover:scale-105 hover:shadow-neon-gold"
           on:click={async () => {
             if ($transactions.length > 0) {
               await payAllBills();
@@ -689,7 +727,7 @@
             }
           }}
         >
-          <i class="fa-duotone fa-check-circle mr-2"></i>{$Locales.confirm}
+          <i class="fa-solid fa-check-circle mr-2 animate-pulse-soft"></i>{$Locales.confirm}
         </button>
       </div>
     </div>
