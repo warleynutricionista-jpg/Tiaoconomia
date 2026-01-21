@@ -342,7 +342,15 @@ function BS.Redeem(src, investmentId)
   ]], { netYield, tax, investmentId })
 
   -- Devolver dinheiro
-  SE.Integrations.AddMoney(src, totalAmount, 'bank', 'resgate_investimento')
+  local okAdd = SE.Integrations.AddMoney(src, totalAmount, 'bank', 'resgate_investimento')
+  if not okAdd then
+    TriggerClientEvent('ox_lib:notify', src, {
+      type = 'error',
+      description = 'Erro ao creditar valor. Contate um administrador.'
+    })
+    U.dbg(('[Banking] ERRO ao creditar resgate para %s - Investment #%d'):format(citizenid, investmentId))
+    return false
+  end
 
   registerTransaction('resgate_financeiro', totalAmount, {
     citizenid = citizenid,
@@ -605,7 +613,7 @@ CreateThread(function()
         INDEX idx_citizenid (citizenid),
         INDEX idx_product (product_id),
         INDEX idx_redeemed (redeemed_at)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ]])
   end)
 

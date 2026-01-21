@@ -902,7 +902,7 @@
         const amount = parsePositiveInt(value);
         if (amount) {
           LoadingIndicator.show('Processando depósito...');
-          Admin.requestData('addVault', { amount });
+          Admin.requestData('addVault', { amount, debitPlayer: false });
         } else {
           Notification.show('Valor inválido', 'error');
         }
