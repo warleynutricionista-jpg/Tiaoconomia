@@ -877,6 +877,199 @@
   };
 
   // ===========================
+  // PLAYER TAXES MODULE
+  // ===========================
+  const PlayerTaxes = {
+    currentTaxes: [],
+
+    open(payload = {}) {
+      UI.showCard('tax-panel');
+      this.requestTaxes();
+    },
+
+    requestTaxes() {
+      if (State.busy) return;
+      UI.setBusy(true);
+      LoadingIndicator.show('Carregando impostos...');
+
+      postNUI('admin_requestData', {
+        dataType: 'player_taxes',
+        payload: {}
+      })
+      .then(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      })
+      .catch(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      });
+    },
+
+    render(taxes = []) {
+      this.currentTaxes = Array.isArray(taxes) ? taxes : [];
+      const tbody = $('#player-tax-tbody');
+      const payAllBtn = $('#pay-all-taxes-btn');
+
+      if (!tbody) return;
+
+      // Calculate total
+      const totalAmount = this.currentTaxes.reduce((sum, tax) => sum + (Number(tax.amount) || 0), 0);
+      const count = this.currentTaxes.length;
+
+      // Update metrics
+      setElementText($('#player-tax-total'), formatMoney(totalAmount));
+      setElementText($('#player-tax-count'), count);
+
+      // Update pay all button
+      if (payAllBtn) {
+        payAllBtn.disabled = count === 0 || totalAmount <= 0;
+        payAllBtn.textContent = `Pagar Todas (${formatMoney(totalAmount)})`;
+      }
+
+      // Render table
+      if (count === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">✅ Nenhum imposto pendente</td></tr>';
+      } else {
+        tbody.innerHTML = this.currentTaxes.map((tax, index) => {
+          const dueDate = tax.due_date ? new Date(tax.due_date).toLocaleDateString('pt-BR') : 'Sem vencimento';
+          const type = String(tax.type || tax.tax_type || 'Imposto');
+          const reason = String(tax.reason || tax.description || '-');
+          const amount = Number(tax.amount) || 0;
+
+          return `
+            <tr>
+              <td><strong>${type}</strong></td>
+              <td>${reason}</td>
+              <td class="money">${formatMoney(amount)}</td>
+              <td>${dueDate}</td>
+              <td>
+                <button class="btn btn-success btn-sm" data-action="pay-single-tax" data-tax-id="${tax.id || index}" data-tax-amount="${amount}" data-tax-reason="${reason}">
+                  Pagar
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    },
+
+    renderHistory(history = []) {
+      const container = $('#player-tax-history');
+      const tbody = $('#player-tax-history-tbody');
+
+      if (!container || !tbody) return;
+
+      container.classList.remove('hidden');
+
+      if (!Array.isArray(history) || history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Sem histórico de pagamentos</td></tr>';
+      } else {
+        tbody.innerHTML = history.map((item) => {
+          const date = item.timestamp ? new Date(item.timestamp).toLocaleDateString('pt-BR') : '-';
+          const type = String(item.type || item.tax_type || 'Imposto');
+          const amount = formatMoney(item.amount || 0);
+          const status = item.status === 'paid' ? '✅ Pago' : item.status === 'pending' ? '⏳ Pendente' : '❌ Cancelado';
+
+          return `
+            <tr>
+              <td>${date}</td>
+              <td>${type}</td>
+              <td class="money">${amount}</td>
+              <td>${status}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    },
+
+    paySingleTax(taxId, amount, reason) {
+      if (State.busy) return;
+
+      const tax = this.currentTaxes.find(t => String(t.id || t.debt_id) === String(taxId));
+      if (!tax && taxId !== undefined) {
+        // Try by index if ID not found
+        const index = Number(taxId);
+        if (index >= 0 && index < this.currentTaxes.length) {
+          tax = this.currentTaxes[index];
+        }
+      }
+
+      const finalAmount = tax ? Number(tax.amount) : Number(amount);
+      const finalReason = tax ? String(tax.reason || tax.description || reason) : String(reason);
+      const finalId = tax ? (tax.id || tax.debt_id) : taxId;
+
+      if (!finalAmount || finalAmount <= 0) {
+        Notification.show('Valor inválido', 'error');
+        return;
+      }
+
+      UI.setBusy(true);
+      LoadingIndicator.show('Processando pagamento...');
+
+      postNUI('admin_requestData', {
+        dataType: 'player_payTax',
+        payload: {
+          tax_id: finalId,
+          amount: finalAmount,
+          reason: finalReason
+        }
+      })
+      .then(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+        Notification.show('Imposto pago com sucesso!', 'success');
+        // Refresh list after payment
+        setTimeout(() => this.requestTaxes(), 500);
+      })
+      .catch(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      });
+    },
+
+    payAllTaxes() {
+      if (State.busy || this.currentTaxes.length === 0) return;
+
+      const totalAmount = this.currentTaxes.reduce((sum, tax) => sum + (Number(tax.amount) || 0), 0);
+
+      if (totalAmount <= 0) {
+        Notification.show('Nenhum imposto para pagar', 'info');
+        return;
+      }
+
+      if (!confirm(`Deseja pagar todos os impostos no valor de ${formatMoney(totalAmount)}?`)) {
+        return;
+      }
+
+      UI.setBusy(true);
+      LoadingIndicator.show('Processando pagamento de todos os impostos...');
+
+      postNUI('admin_requestData', {
+        dataType: 'player_payAllTaxes',
+        payload: {
+          taxes: this.currentTaxes.map(t => ({
+            id: t.id || t.debt_id,
+            amount: Number(t.amount) || 0,
+            reason: t.reason || t.description || 'Imposto'
+          }))
+        }
+      })
+      .then(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+        Notification.show('Todos os impostos foram pagos!', 'success');
+        // Refresh list after payment
+        setTimeout(() => this.requestTaxes(), 500);
+      })
+      .catch(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      });
+    },
+  };
+
+  // ===========================
   // ACTION ROUTER
   // ===========================
   const Actions = {
@@ -956,6 +1149,13 @@
     'copom-hold'() { Admin.requestData('admin_copom_action', { action: 'hold' }); },
     'copom-lower'() { Admin.requestData('admin_copom_action', { action: 'lower' }); },
 
+    // Player Taxes actions
+    'refresh-player-taxes'() { PlayerTaxes.requestTaxes(); },
+    'load-player-tax-history'() {
+      Admin.requestData('player_tax_history', {});
+    },
+    'pay-all-taxes'() { PlayerTaxes.payAllTaxes(); },
+
     // Payment modal
     'confirm-payment'() {
       if (State.busy) return;
@@ -999,6 +1199,16 @@
       const actionBtn = e.target.closest('[data-action]');
       if (actionBtn) {
         const action = actionBtn.dataset.action;
+
+        // Handle pay-single-tax specially (needs parameters)
+        if (action === 'pay-single-tax') {
+          const taxId = actionBtn.dataset.taxId;
+          const amount = actionBtn.dataset.taxAmount;
+          const reason = actionBtn.dataset.taxReason;
+          PlayerTaxes.paySingleTax(taxId, amount, reason);
+          return;
+        }
+
         if (Actions[action]) {
           log('Action:', action);
           Actions[action]();
@@ -1074,6 +1284,12 @@
       inputConfirm.addEventListener('click', () => InputModal.confirm());
     }
 
+    // Pay all taxes button
+    const payAllBtn = $('#pay-all-taxes-btn');
+    if (payAllBtn) {
+      payAllBtn.addEventListener('click', () => PlayerTaxes.payAllTaxes());
+    }
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && State.uiOpen) {
@@ -1122,9 +1338,8 @@
         if (mode === 'admin') {
           Admin.open(payload);
         } else if (mode === 'tax') {
-          // Open admin panel directly on taxes view
-          Admin.open(payload);
-          UI.switchView('taxes');
+          // Open player tax panel
+          PlayerTaxes.open(payload);
         } else if (mode === 'payment') {
           State.payment.amount = Number(payload.tax || 0);
           State.payment.reason = String(payload.reason || '—');
@@ -1176,6 +1391,16 @@
           const stats = d || {};
           setElementText($('#debts-total'), formatMoney(stats.totalActive || 0));
           setElementText($('#debts-count'), stats.count || 0);
+        } else if (key === 'player_taxes') {
+          PlayerTaxes.render((d && d.taxes) || d || []);
+        } else if (key === 'player_tax_history') {
+          PlayerTaxes.renderHistory((d && d.history) || d || []);
+        } else if (key === 'player_payTax' || key === 'player_payAllTaxes') {
+          // Payment successful - notifications already shown
+          const message = (d && d.message) || 'Pagamento realizado com sucesso!';
+          if (!d || d.success !== false) {
+            Notification.show(message, 'success');
+          }
         }
 
         UI.setBusy(false);

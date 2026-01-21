@@ -515,6 +515,201 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
 
       return SendAdminPacket(src, dataType, { message = message or 'Tributo lançado com sucesso!' }, true)
 
+    --========================
+    -- Player Taxes (non-admin)
+    --========================
+    elseif dataType == 'player_taxes' then
+      local citizenid = B and B.GetCitizenId and B.GetCitizenId(src)
+      if not citizenid then
+        return SendAdminPacket(src, 'error', { message = 'Player não encontrado.' }, false)
+      end
+
+      local taxes = {}
+      if HasMySQL() then
+        taxes = MySQL.query.await([[
+          SELECT id, citizenid, amount, reason, type, status, due_date, created_at
+          FROM space_economy_debts
+          WHERE citizenid = ? AND status IN ('active', 'pending')
+          ORDER BY created_at DESC
+          LIMIT 50
+        ]], { citizenid }) or {}
+      end
+
+      return SendAdminPacket(src, dataType, { taxes = taxes }, true)
+
+    elseif dataType == 'player_tax_history' then
+      local citizenid = B and B.GetCitizenId and B.GetCitizenId(src)
+      if not citizenid then
+        return SendAdminPacket(src, 'error', { message = 'Player não encontrado.' }, false)
+      end
+
+      local history = {}
+      if HasMySQL() then
+        history = MySQL.query.await([[
+          SELECT id, amount, reason, type, status, timestamp, created_at
+          FROM space_economy_debts
+          WHERE citizenid = ? AND status IN ('paid', 'cancelled')
+          ORDER BY created_at DESC
+          LIMIT 100
+        ]], { citizenid }) or {}
+      end
+
+      return SendAdminPacket(src, dataType, { history = history }, true)
+
+    elseif dataType == 'player_payTax' then
+      local citizenid = B and B.GetCitizenId and B.GetCitizenId(src)
+      if not citizenid then
+        return SendAdminPacket(src, 'error', { message = 'Player não encontrado.' }, false)
+      end
+
+      local taxId = tonumber(payload.tax_id or payload.id)
+      local amount = (U and U.toInt and U.toInt(payload.amount, 0)) or Num(payload.amount, 0)
+      local reason = tostring(payload.reason or 'Pagamento de imposto')
+
+      if not taxId or amount <= 0 then
+        return SendAdminPacket(src, 'error', { message = 'Dados inválidos.' }, false)
+      end
+
+      -- Verify debt belongs to player
+      local debt = nil
+      if HasMySQL() then
+        debt = MySQL.single.await([[
+          SELECT id, citizenid, amount, status
+          FROM space_economy_debts
+          WHERE id = ? AND citizenid = ? AND status IN ('active', 'pending')
+        ]], { taxId, citizenid })
+      end
+
+      if not debt then
+        return SendAdminPacket(src, 'error', { message = 'Imposto não encontrado ou já pago.' }, false)
+      end
+
+      -- Check player balance
+      local balance = 0
+      if SE.Integrations and SE.Integrations.GetBalance then
+        balance = SE.Integrations.GetBalance(src, 'bank') or 0
+      elseif B and B.GetBankBalance then
+        balance = B.GetBankBalance(src) or 0
+      end
+
+      if balance < amount then
+        return SendAdminPacket(src, 'error', { message = 'Saldo bancário insuficiente.' }, false)
+      end
+
+      -- Remove money from player
+      local okPay = false
+      if SE.Integrations and SE.Integrations.RemoveMoney then
+        okPay = SE.Integrations.RemoveMoney(src, amount, 'bank') == true
+      elseif B and B.RemoveBankMoney then
+        okPay = B.RemoveBankMoney(src, amount, reason) == true
+      end
+
+      if not okPay then
+        return SendAdminPacket(src, 'error', { message = 'Falha ao debitar valor.' }, false)
+      end
+
+      -- Deposit to treasury
+      TreasuryDeposit(amount, 'imposto_player', { src = src, citizenid = citizenid, reason = reason, debt_id = taxId })
+
+      -- Mark debt as paid
+      if HasMySQL() then
+        MySQL.update.await([[
+          UPDATE space_economy_debts
+          SET status = 'paid', timestamp = NOW()
+          WHERE id = ?
+        ]], { taxId })
+      end
+
+      SE.Log('tax', ('Imposto pago: $%d por %s'):format(amount, citizenid), {
+        src = src,
+        citizenid = citizenid,
+        amount = amount,
+        debt_id = taxId,
+        reason = reason,
+      })
+
+      return SendAdminPacket(src, dataType, { message = 'Imposto pago com sucesso!', success = true }, true)
+
+    elseif dataType == 'player_payAllTaxes' then
+      local citizenid = B and B.GetCitizenId and B.GetCitizenId(src)
+      if not citizenid then
+        return SendAdminPacket(src, 'error', { message = 'Player não encontrado.' }, false)
+      end
+
+      local taxes = payload.taxes or {}
+      if type(taxes) ~= 'table' or #taxes == 0 then
+        return SendAdminPacket(src, 'error', { message = 'Nenhum imposto para pagar.' }, false)
+      end
+
+      -- Calculate total
+      local totalAmount = 0
+      for _, tax in ipairs(taxes) do
+        local amt = (U and U.toInt and U.toInt(tax.amount, 0)) or Num(tax.amount, 0)
+        totalAmount = totalAmount + amt
+      end
+
+      if totalAmount <= 0 then
+        return SendAdminPacket(src, 'error', { message = 'Valor total inválido.' }, false)
+      end
+
+      -- Check player balance
+      local balance = 0
+      if SE.Integrations and SE.Integrations.GetBalance then
+        balance = SE.Integrations.GetBalance(src, 'bank') or 0
+      elseif B and B.GetBankBalance then
+        balance = B.GetBankBalance(src) or 0
+      end
+
+      if balance < totalAmount then
+        return SendAdminPacket(src, 'error', { message = 'Saldo bancário insuficiente.' }, false)
+      end
+
+      -- Remove money from player
+      local okPay = false
+      if SE.Integrations and SE.Integrations.RemoveMoney then
+        okPay = SE.Integrations.RemoveMoney(src, totalAmount, 'bank') == true
+      elseif B and B.RemoveBankMoney then
+        okPay = B.RemoveBankMoney(src, totalAmount, 'Pagamento de impostos') == true
+      end
+
+      if not okPay then
+        return SendAdminPacket(src, 'error', { message = 'Falha ao debitar valor.' }, false)
+      end
+
+      -- Deposit to treasury
+      TreasuryDeposit(totalAmount, 'impostos_player_multiplos', { src = src, citizenid = citizenid, count = #taxes })
+
+      -- Mark all debts as paid
+      local paidCount = 0
+      if HasMySQL() then
+        for _, tax in ipairs(taxes) do
+          local taxId = tonumber(tax.id)
+          if taxId then
+            local updated = MySQL.update.await([[
+              UPDATE space_economy_debts
+              SET status = 'paid', timestamp = NOW()
+              WHERE id = ? AND citizenid = ? AND status IN ('active', 'pending')
+            ]], { taxId, citizenid })
+            if updated and updated > 0 then
+              paidCount = paidCount + 1
+            end
+          end
+        end
+      end
+
+      SE.Log('tax', ('Pagamento múltiplo: $%d (%d impostos) por %s'):format(totalAmount, paidCount, citizenid), {
+        src = src,
+        citizenid = citizenid,
+        totalAmount = totalAmount,
+        count = paidCount,
+      })
+
+      return SendAdminPacket(src, dataType, {
+        message = ('Todos os impostos foram pagos! Total: $%d'):format(totalAmount),
+        success = true,
+        paid_count = paidCount
+      }, true)
+
     else
       return SendAdminPacket(src, 'error', { message = ('Ação não suportada: %s'):format(dataType) }, false)
     end
