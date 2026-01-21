@@ -428,6 +428,26 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
     elseif dataType == 'loans_stats' then
       return SendAdminPacket(src, dataType, { stats = getLoansStats() }, true)
 
+    elseif dataType == 'loan_simulation_admin' then
+      local citizenid = tostring(payload.citizenid or '')
+      local amount = tonumber(payload.amount or 0) or 0
+      local installments = tonumber(payload.installments or payload.months or 12) or 12
+
+      if citizenid == '' then
+        return SendAdminPacket(src, 'error', { message = 'Informe o CitizenID.' }, false)
+      end
+
+      if not (SE.Loans and SE.Loans.Simulate) then
+        return SendAdminPacket(src, 'error', { message = 'Sistema de empréstimos indisponível.' }, false)
+      end
+
+      local sim, err = SE.Loans.Simulate(citizenid, amount, installments, payload.purpose)
+      if not sim then
+        return SendAdminPacket(src, 'error', { message = ('Falha na simulação: %s'):format(tostring(err or 'erro')) }, false)
+      end
+
+      return SendAdminPacket(src, dataType, { simulation = sim }, true)
+
     elseif dataType == 'loans_list' then
       local limit = math.min(math.max(Num(payload.limit, 50), 1), 200)
       local rows = {}
@@ -608,10 +628,9 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       end
 
       local taxId = tonumber(payload.tax_id or payload.id)
-      local amount = (U and U.toInt and U.toInt(payload.amount, 0)) or Num(payload.amount, 0)
       local reason = tostring(payload.reason or 'Pagamento de imposto')
 
-      if not taxId or amount <= 0 then
+      if not taxId then
         return SendAdminPacket(src, 'error', { message = 'Dados inválidos.' }, false)
       end
 
@@ -627,6 +646,11 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
 
       if not debt then
         return SendAdminPacket(src, 'error', { message = 'Imposto não encontrado ou já pago.' }, false)
+      end
+
+      local amount = (U and U.toInt and U.toInt(debt.amount, 0)) or Num(debt.amount, 0)
+      if amount <= 0 then
+        return SendAdminPacket(src, 'error', { message = 'Valor inválido para pagamento.' }, false)
       end
 
       -- Check player balance
@@ -660,7 +684,7 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       if HasMySQL() then
         MySQL.update.await([[
           UPDATE space_economy_debts
-          SET status = 'paid', timestamp = NOW()
+          SET status = 'paid', paid_at = NOW()
           WHERE id = ?
         ]], { taxId })
       end
@@ -686,9 +710,39 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
         return SendAdminPacket(src, 'error', { message = 'Nenhum imposto para pagar.' }, false)
       end
 
+      local taxIds = {}
+      for _, tax in ipairs(taxes) do
+        local id = tonumber(tax.id or tax.tax_id or tax.debt_id)
+        if id then
+          taxIds[#taxIds + 1] = id
+        end
+      end
+
+      if #taxIds == 0 then
+        return SendAdminPacket(src, 'error', { message = 'Nenhum imposto válido para pagar.' }, false)
+      end
+
+      local listedTaxes = {}
+      if HasMySQL() then
+        local marks = {}
+        for _ = 1, #taxIds do
+          marks[#marks + 1] = '?'
+        end
+        listedTaxes = MySQL.query.await(([[
+          SELECT id, amount
+          FROM space_economy_debts
+          WHERE citizenid = ? AND status IN ('active', 'pending')
+            AND id IN (%s)
+        ]]):format(table.concat(marks, ',')), { citizenid, table.unpack(taxIds) }) or {}
+      end
+
+      if #listedTaxes == 0 then
+        return SendAdminPacket(src, 'error', { message = 'Nenhum imposto encontrado para pagamento.' }, false)
+      end
+
       -- Calculate total
       local totalAmount = 0
-      for _, tax in ipairs(taxes) do
+      for _, tax in ipairs(listedTaxes) do
         local amt = (U and U.toInt and U.toInt(tax.amount, 0)) or Num(tax.amount, 0)
         totalAmount = totalAmount + amt
       end
@@ -727,12 +781,12 @@ RegisterNetEvent('space_economy:server_requestAdminData', function(dataType, pay
       -- Mark all debts as paid
       local paidCount = 0
       if HasMySQL() then
-        for _, tax in ipairs(taxes) do
+        for _, tax in ipairs(listedTaxes) do
           local taxId = tonumber(tax.id)
           if taxId then
             local updated = MySQL.update.await([[
               UPDATE space_economy_debts
-              SET status = 'paid', timestamp = NOW()
+              SET status = 'paid', paid_at = NOW()
               WHERE id = ? AND citizenid = ? AND status IN ('active', 'pending')
             ]], { taxId, citizenid })
             if updated and updated > 0 then

@@ -200,6 +200,50 @@ local function normalizeInflation(v)
   return clamp(v, minR, maxR)
 end
 
+local function listPlayerDirectory()
+  local players = {}
+  if not (MySQL and MySQL.query and MySQL.query.await) then
+    return players
+  end
+
+  local ok, rows = pcall(function()
+    return MySQL.query.await([[
+      SELECT citizenid, name
+      FROM space_economy_charcache
+      WHERE citizenid IS NOT NULL AND citizenid != ''
+      ORDER BY name ASC
+    ]])
+  end)
+
+  if ok and rows and #rows > 0 then
+    for _, row in ipairs(rows) do
+      if row and row.citizenid then
+        players[#players + 1] = {
+          citizenid = tostring(row.citizenid),
+          name = tostring(row.name or 'Desconhecido')
+        }
+      end
+    end
+    return players
+  end
+
+  for _, s in ipairs(GetPlayers()) do
+    local src = tonumber(s)
+    if src then
+      local cid = (B and B.GetCitizenId and B.GetCitizenId(src)) or nil
+      if cid then
+        local name = (B and B.GetCharName and B.GetCharName(src)) or 'Desconhecido'
+        players[#players + 1] = {
+          citizenid = tostring(cid),
+          name = tostring(name)
+        }
+      end
+    end
+  end
+
+  return players
+end
+
 function SE.Admin.GetStatePayload()
   local vault = (SE.Treasury and SE.Treasury.GetBalance and SE.Treasury.GetBalance()) or toInt(S.vaultBalance, 0)
   local settings = ensureSettingsShape(S.settings or {})
@@ -211,7 +255,8 @@ function SE.Admin.GetStatePayload()
       taxrate = toNumber(S.taxMultiplier, 1.0) * 100.0
     },
     settings = settings,
-    taxCatalog = settings.taxCatalog or nil
+    taxCatalog = settings.taxCatalog or nil,
+    players = listPlayerDirectory()
   }
 end
 

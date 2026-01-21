@@ -125,6 +125,7 @@
     payment: { amount: 0, reason: '' },
     inputModal: { callback: null, type: 'text' },
     pendingRequests: 0,
+    players: [],
     dashboard: {
       charts: {},
     },
@@ -273,6 +274,122 @@
   };
 
   // ===========================
+  // PLAYER DIRECTORY SELECTOR
+  // ===========================
+  const PlayerDirectory = {
+    selects: [],
+    players: [],
+
+    init() {
+      this.selects = [];
+      $$('.player-select').forEach((wrapper) => {
+        const searchInput = wrapper.querySelector('.player-select-search');
+        const listEl = wrapper.querySelector('.player-select-list');
+        const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+
+        if (!searchInput || !listEl || !hiddenInput) return;
+
+        const select = {
+          wrapper,
+          searchInput,
+          listEl,
+          hiddenInput,
+          selected: null,
+        };
+
+        searchInput.addEventListener('input', () => {
+          this.syncSelection(select);
+          this.renderList(select);
+        });
+        searchInput.addEventListener('focus', () => this.renderList(select));
+
+        listEl.addEventListener('click', (event) => {
+          const button = event.target.closest('button[data-citizenid]');
+          if (!button) return;
+          const citizenid = button.dataset.citizenid;
+          const label = button.dataset.label || citizenid;
+          select.selected = citizenid;
+          hiddenInput.value = citizenid;
+          searchInput.value = label;
+          this.renderList(select);
+        });
+
+        this.selects.push(select);
+      });
+
+      this.renderAll();
+    },
+
+    setPlayers(players = []) {
+      const cleaned = Array.isArray(players) ? players : [];
+      this.players = cleaned
+        .map((p) => ({
+          citizenid: String(p.citizenid || '').trim(),
+          name: String(p.name || 'Desconhecido').trim(),
+        }))
+        .filter((p) => p.citizenid)
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+      this.renderAll();
+    },
+
+    syncSelection(select) {
+      const query = String(select.searchInput.value || '').trim();
+      if (!query) {
+        select.selected = null;
+        select.hiddenInput.value = '';
+        return;
+      }
+
+      const exact = this.players.find((p) => p.citizenid.toLowerCase() === query.toLowerCase());
+      if (exact) {
+        select.selected = exact.citizenid;
+        select.hiddenInput.value = exact.citizenid;
+      } else if (select.selected && select.searchInput.value !== this.getLabel(select.selected)) {
+        select.selected = null;
+        select.hiddenInput.value = '';
+      }
+    },
+
+    getLabel(citizenid) {
+      const entry = this.players.find((p) => p.citizenid === citizenid);
+      if (!entry) return citizenid;
+      return `${entry.name} • ${entry.citizenid}`;
+    },
+
+    renderList(select) {
+      const query = String(select.searchInput.value || '').trim().toLowerCase();
+      const list = select.listEl;
+      const items = query
+        ? this.players.filter((p) => {
+          const label = `${p.name} ${p.citizenid}`.toLowerCase();
+          return label.includes(query);
+        })
+        : this.players;
+
+      if (!items.length) {
+        list.innerHTML = '<div class="player-select-empty">Nenhum jogador encontrado</div>';
+        return;
+      }
+
+      list.innerHTML = items.map((p) => {
+        const label = `${p.name} • ${p.citizenid}`;
+        const selected = select.selected === p.citizenid ? 'is-selected' : '';
+        return `
+          <button type="button" class="player-select-item ${selected}" data-citizenid="${p.citizenid}" data-label="${label}">
+            <span class="player-select-name">${p.name}</span>
+            <span class="player-select-id">${p.citizenid}</span>
+          </button>
+        `;
+      }).join('');
+    },
+
+    renderAll() {
+      this.selects.forEach((select) => this.renderList(select));
+    },
+  };
+
+  // ===========================
   // UI CONTROLLER
   // ===========================
   const UI = {
@@ -387,6 +504,8 @@
       const settings = data.settings || {};
 
       State.taxCatalog = data.taxCatalog || settings.taxCatalog || this.DEFAULT_TAX_CATALOG;
+      State.players = Array.isArray(data.players) ? data.players : [];
+      PlayerDirectory.setPlayers(State.players);
 
       // Update metrics
       setElementText($('#metric-vault'), formatMoney(metrics.vault || 0));
@@ -751,33 +870,78 @@
         return alert('Preencha todos os campos');
       }
 
-      // Mock calculation (can be connected to backend)
-      const interestRate = 2.5; // 2.5% per month
-      const totalInterest = amount * (interestRate / 100) * installments;
-      const totalAmount = amount + totalInterest;
-      const monthlyPayment = Math.floor(totalAmount / installments);
+      UI.setBusy(true);
+      LoadingIndicator.show('Simulando empréstimo...');
+      postNUI('admin_requestData', {
+        dataType: 'loan_simulation_admin',
+        payload: {
+          citizenid,
+          amount,
+          installments
+        }
+      })
+      .then(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      })
+      .catch(() => {
+        UI.setBusy(false);
+        LoadingIndicator.hide();
+      });
+    },
 
-      if (resultContainer && detailsContainer) {
-        detailsContainer.innerHTML = `
-          <div class="info-item">
-            <span class="info-label">Valor Solicitado</span>
-            <span class="money">${formatMoney(amount)}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Taxa de Juros (${formatDecimal(interestRate, 1)}% a.m.)</span>
-            <span class="money">${formatMoney(totalInterest)}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Total a Pagar</span>
-            <span class="money">${formatMoney(totalAmount)}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Parcela Mensal</span>
-            <span class="info-value">${formatMoney(monthlyPayment)} × ${installments} meses</span>
-          </div>
-        `;
-        resultContainer.classList.remove('hidden');
+    renderSimulation(simulation = null) {
+      const resultContainer = $('#loan-simulation-result');
+      const detailsContainer = $('#loan-sim-details');
+
+      if (!resultContainer || !detailsContainer || !simulation) {
+        if (resultContainer) resultContainer.classList.add('hidden');
+        return;
       }
+
+      const termMonths = Number(simulation.termMonths || 0);
+      const approvalLabel = simulation.approved ? '✅ Pré-aprovado' : '⚠️ Avaliação pendente';
+
+      detailsContainer.innerHTML = `
+        <div class="info-item">
+          <span class="info-label">Valor Solicitado</span>
+          <span class="money">${formatMoney(simulation.amount || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Taxa de Juros (${formatDecimal(simulation.interestRatePercent || 0, 1)}% a.m.)</span>
+          <span class="money">${formatMoney(simulation.totalInterest || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Tarifa de abertura</span>
+          <span class="money">${formatMoney(simulation.originationFee || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Valor liberado</span>
+          <span class="money">${formatMoney(simulation.disbursedAmount || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Total a Pagar</span>
+          <span class="money">${formatMoney(simulation.totalPayment || 0)}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Parcela Mensal</span>
+          <span class="info-value">${formatMoney(simulation.monthlyPayment || 0)} × ${termMonths} meses</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Score Patrimonial</span>
+          <span class="info-value">${simulation.assetScore || 0} (${formatMoney(simulation.assetValue || 0)})</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Score Final</span>
+          <span class="info-value">${simulation.effectiveScore || 0} (${simulation.effectiveRating || '—'})</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Status</span>
+          <span class="info-value">${approvalLabel}</span>
+        </div>
+      `;
+
+      resultContainer.classList.remove('hidden');
     },
   };
 
@@ -1018,9 +1182,6 @@
       .then(() => {
         UI.setBusy(false);
         LoadingIndicator.hide();
-        Notification.show('Imposto pago com sucesso!', 'success');
-        // Refresh list after payment
-        setTimeout(() => this.requestTaxes(), 500);
       })
       .catch(() => {
         UI.setBusy(false);
@@ -1058,9 +1219,6 @@
       .then(() => {
         UI.setBusy(false);
         LoadingIndicator.hide();
-        Notification.show('Todos os impostos foram pagos!', 'success');
-        // Refresh list after payment
-        setTimeout(() => this.requestTaxes(), 500);
       })
       .catch(() => {
         UI.setBusy(false);
@@ -1172,6 +1330,14 @@
         <div class="info-item">
           <span class="info-label">Score de crédito</span>
           <span class="info-value">${simulation.creditScore || 0} (${simulation.rating || '—'})</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Score Patrimonial</span>
+          <span class="info-value">${simulation.assetScore || 0} (${formatMoney(simulation.assetValue || 0)})</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Score Final</span>
+          <span class="info-value">${simulation.effectiveScore || 0} (${simulation.effectiveRating || '—'})</span>
         </div>
         <div class="info-item">
           <span class="info-label">Status</span>
@@ -1510,6 +1676,8 @@
           setElementText($('#loans-total'), formatMoney(stats.totalActive || 0));
           setElementText($('#loans-avg-rate'), `${formatDecimal(stats.avgRate || 0, 1)}%`);
           setElementText($('#loans-count'), stats.count || 0);
+        } else if (key === 'loan_simulation_admin') {
+          Loans.renderSimulation((d && d.simulation) || d);
         } else if (key === 'installments_stats') {
           const stats = d || {};
           setElementText($('#installments-total'), formatMoney(stats.totalActive || 0));
@@ -1527,6 +1695,7 @@
           const message = (d && d.message) || 'Pagamento realizado com sucesso!';
           if (!d || d.success !== false) {
             Notification.show(message, 'success');
+            PlayerTaxes.requestTaxes();
           }
         }
 
@@ -1556,6 +1725,7 @@
   function init() {
     log('Initializing Space Economy UI v5.0...');
     initEventListeners();
+    PlayerDirectory.init();
     UI.show(false);
     log('UI Ready!');
   }

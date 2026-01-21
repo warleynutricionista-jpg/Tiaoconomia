@@ -298,6 +298,63 @@ local function calculateMonthlyPayment(principal, monthlyRate, months)
   return payment
 end
 
+local function getScoreRating(score)
+  score = _toInt(score, 0)
+  if score >= 850 then return 'Excelente' end
+  if score >= 740 then return 'Muito Bom' end
+  if score >= 670 then return 'Bom' end
+  if score >= 580 then return 'Regular' end
+  if score >= 300 then return 'Ruim' end
+  return 'Péssimo'
+end
+
+local function calculateAssetScore(citizenid)
+  local totalValue = 0
+  local assetCount = 0
+  local vehicles = {}
+  local properties = {}
+
+  if SE.DB and type(SE.DB.GetPlayerVehicles) == 'function' then
+    vehicles = SE.DB.GetPlayerVehicles(citizenid) or {}
+  end
+  if SE.DB and type(SE.DB.GetPlayerProperties) == 'function' then
+    properties = SE.DB.GetPlayerProperties(citizenid) or {}
+  end
+
+  for _, veh in ipairs(vehicles) do
+    local price = _toInt(veh.price or veh.value, 0)
+    if price > 0 then
+      totalValue = totalValue + price
+      assetCount = assetCount + 1
+    end
+  end
+
+  for _, prop in ipairs(properties) do
+    local price = _toInt(prop.price or prop.value, 0)
+    if price > 0 then
+      totalValue = totalValue + price
+      assetCount = assetCount + 1
+    end
+  end
+
+  local score = 480
+  if totalValue >= 1000000 then
+    score = 850
+  elseif totalValue >= 500000 then
+    score = 780
+  elseif totalValue >= 250000 then
+    score = 700
+  elseif totalValue >= 100000 then
+    score = 620
+  elseif totalValue >= 50000 then
+    score = 560
+  elseif totalValue > 0 then
+    score = 520
+  end
+
+  return score, totalValue, assetCount
+end
+
 --============================================================
 -- API: Simulação
 --============================================================
@@ -329,7 +386,11 @@ function Loans.Simulate(citizenid, amount, months, purpose)
     end
   end
 
-  local tier = getLoanTier(scoreValue)
+  local assetScore, assetValue, assetCount = calculateAssetScore(citizenid)
+  local effectiveScore = math.floor((scoreValue * 0.6) + (assetScore * 0.4))
+  local effectiveRating = getScoreRating(effectiveScore)
+
+  local tier = getLoanTier(effectiveScore)
   if amount > _toInt(tier.maxAmount, 0) then
     return nil, ('limite_excedido:%d'):format(_toInt(tier.maxAmount, 0))
   end
@@ -369,8 +430,13 @@ function Loans.Simulate(citizenid, amount, months, purpose)
     totalInterest = totalInterest,
     creditScore = scoreValue,
     rating = rating,
+    assetScore = assetScore,
+    assetValue = assetValue,
+    assetCount = assetCount,
+    effectiveScore = effectiveScore,
+    effectiveRating = effectiveRating,
     purpose = _safeStr(purpose, 'Uso pessoal'),
-    approved = (scoreValue >= 580),
+    approved = (effectiveScore >= 580),
     maxAllowed = _toInt(tier.maxAmount, 0)
   }
 end
@@ -419,7 +485,7 @@ function Loans.Request(src, amount, months, purpose)
     sim.interestRate,
     sim.termMonths,
     sim.monthlyPayment,
-    sim.creditScore,
+    sim.effectiveScore,
     sim.purpose,
     'auto',
     nextDue,
