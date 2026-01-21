@@ -1,0 +1,436 @@
+/* =====================================================
+   PS-Banking Enhanced Styles
+   Modern, realistic banking interface styles
+   ===================================================== */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================
+   Base Styles & Fonts
+   ===================================================== */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-transparent;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar Styles */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-white/5 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
+  }
+}
+
+/* =====================================================
+   Component Styles
+   ===================================================== */
+
+@layer components {
+  /* Modern Card */
+  .modern-card {
+    @apply bg-gradient-to-br from-gray-900/95 to-gray-800/95;
+    @apply backdrop-blur-2xl;
+    @apply border border-white/10;
+    @apply rounded-3xl;
+    @apply shadow-2xl shadow-black/50;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .modern-card::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .modern-card:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Stat Card */
+  .stat-card {
+    @apply bg-white/5 backdrop-blur-md;
+    @apply border border-white/10;
+    @apply rounded-2xl p-4;
+    @apply transition-all duration-300;
+    @apply hover:bg-white/10 hover:border-white/20;
+    @apply hover:shadow-lg hover:shadow-white/10;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-1;
+    @apply bg-gradient-to-r from-transparent via-green-500 to-transparent;
+    @apply opacity-0 transition-opacity duration-300;
+  }
+
+  .stat-card:hover::after {
+    @apply opacity-100;
+  }
+
+  /* Navigation Item */
+  .nav-item {
+    @apply relative;
+    @apply rounded-xl;
+    @apply transition-all duration-300;
+    @apply hover:bg-white/10;
+    @apply border border-transparent;
+    overflow: hidden;
+  }
+
+  .nav-item::before {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2;
+    @apply w-1 h-0 bg-gradient-to-b from-green-400 to-emerald-500;
+    @apply transition-all duration-300 rounded-r-full;
+  }
+
+  .nav-item.active {
+    @apply bg-white/10 border-white/20;
+  }
+
+  .nav-item.active::before {
+    @apply h-10;
+  }
+
+  /* Button Variants */
+  .btn-primary {
+    @apply px-6 py-3 rounded-xl;
+    @apply bg-gradient-to-r from-green-500 to-emerald-600;
+    @apply text-white font-semibold;
+    @apply shadow-lg shadow-green-500/30;
+    @apply transition-all duration-300;
+    @apply hover:shadow-xl hover:shadow-green-500/50;
+    @apply hover:scale-105;
+    @apply active:scale-95;
+    @apply border border-green-400/20;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::before {
+    content: '';
+    @apply absolute inset-0;
+    @apply bg-gradient-to-r from-white/20 to-transparent;
+    @apply translate-x-[-100%];
+    @apply transition-transform duration-500;
+  }
+
+  .btn-primary:hover::before {
+    @apply translate-x-[100%];
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-xl;
+    @apply bg-white/5 backdrop-blur-sm;
+    @apply text-white/90 font-medium;
+    @apply border border-white/10;
+    @apply transition-all duration-300;
+    @apply hover:bg-white/10 hover:border-white/20;
+    @apply hover:scale-105;
+    @apply active:scale-95;
+  }
+
+  .btn-danger {
+    @apply px-6 py-3 rounded-xl;
+    @apply bg-gradient-to-r from-red-500 to-rose-600;
+    @apply text-white font-semibold;
+    @apply shadow-lg shadow-red-500/30;
+    @apply transition-all duration-300;
+    @apply hover:shadow-xl hover:shadow-red-500/50;
+    @apply hover:scale-105;
+    @apply active:scale-95;
+    @apply border border-red-400/20;
+  }
+
+  /* Input Fields */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl;
+    @apply bg-white/5 backdrop-blur-sm;
+    @apply border border-white/10;
+    @apply text-white placeholder-white/40;
+    @apply transition-all duration-300;
+    @apply focus:bg-white/10 focus:border-green-500/50;
+    @apply focus:outline-none focus:ring-2 focus:ring-green-500/20;
+    @apply hover:border-white/20;
+  }
+
+  .input-field:focus {
+    @apply shadow-lg shadow-green-500/10;
+  }
+
+  /* Notification Card */
+  .notification-card {
+    @apply bg-gray-900/95 backdrop-blur-xl;
+    @apply border-2 border-white/20;
+    @apply rounded-2xl;
+    @apply shadow-2xl shadow-black/50;
+    animation: slide-in-right 0.4s ease-out;
+  }
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Transaction Item */
+  .transaction-item {
+    @apply bg-white/5 backdrop-blur-sm;
+    @apply border border-white/10;
+    @apply rounded-xl p-4;
+    @apply transition-all duration-300;
+    @apply hover:bg-white/10 hover:border-white/20;
+    @apply hover:scale-[1.02];
+    @apply cursor-pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .transaction-item::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent;
+    @apply translate-x-[-100%] transition-transform duration-700;
+  }
+
+  .transaction-item:hover::before {
+    @apply translate-x-[100%];
+  }
+
+  /* Bill Card */
+  .bill-card {
+    @apply bg-gradient-to-br from-white/10 to-white/5;
+    @apply backdrop-blur-md;
+    @apply border border-white/20;
+    @apply rounded-2xl p-6;
+    @apply transition-all duration-300;
+    @apply hover:border-yellow-500/50;
+    @apply hover:shadow-xl hover:shadow-yellow-500/20;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bill-card::after {
+    content: '';
+    @apply absolute top-0 right-0 w-32 h-32;
+    @apply bg-gradient-to-br from-yellow-500/20 to-transparent;
+    @apply rounded-full blur-3xl;
+  }
+
+  /* Account Card */
+  .account-card {
+    @apply bg-gradient-to-br from-green-500/10 to-emerald-500/5;
+    @apply backdrop-blur-md;
+    @apply border border-green-500/30;
+    @apply rounded-2xl p-6;
+    @apply transition-all duration-300;
+    @apply hover:border-green-500/50;
+    @apply hover:shadow-2xl hover:shadow-green-500/30;
+    @apply hover:scale-[1.02];
+    position: relative;
+    overflow: hidden;
+  }
+
+  .account-card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-full;
+    @apply bg-gradient-to-br from-green-500/5 to-transparent;
+    @apply opacity-0 transition-opacity duration-300;
+  }
+
+  .account-card:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Balance Display */
+  .balance-display {
+    @apply text-4xl font-bold;
+    @apply bg-gradient-to-r from-green-400 via-emerald-400 to-green-500;
+    @apply bg-clip-text text-transparent;
+    @apply animate-text-shimmer;
+    background-size: 200% 100%;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full;
+    @apply text-xs font-semibold;
+    @apply border;
+    @apply transition-all duration-300;
+  }
+
+  .badge-success {
+    @apply bg-green-500/20 text-green-400 border-green-500/30;
+  }
+
+  .badge-danger {
+    @apply bg-red-500/20 text-red-400 border-red-500/30;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  }
+
+  .badge-info {
+    @apply bg-blue-500/20 text-blue-400 border-blue-500/30;
+  }
+
+  /* Modal Overlay */
+  .modal-overlay {
+    @apply fixed inset-0 z-50;
+    @apply bg-black/70 backdrop-blur-sm;
+    @apply flex items-center justify-center p-4;
+    animation: fade-in 0.3s ease-out;
+  }
+
+  /* Modal Content */
+  .modal-content {
+    @apply bg-gradient-to-br from-gray-900/98 to-gray-800/98;
+    @apply backdrop-blur-2xl;
+    @apply border border-white/20;
+    @apply rounded-3xl p-8;
+    @apply shadow-2xl shadow-black/70;
+    @apply max-w-lg w-full;
+    animation: scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Loading Spinner */
+  .loading-spinner {
+    @apply w-8 h-8;
+    @apply border-4 border-white/20 border-t-green-500;
+    @apply rounded-full;
+    @apply animate-spin;
+  }
+
+  /* Divider */
+  .divider {
+    @apply h-px w-full;
+    @apply bg-gradient-to-r from-transparent via-white/20 to-transparent;
+  }
+
+  /* Glass Panel */
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md;
+    @apply border border-white/10;
+    @apply rounded-2xl;
+    @apply shadow-lg shadow-black/20;
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-green-400 via-emerald-500 to-green-600;
+    @apply bg-clip-text text-transparent;
+  }
+
+  /* Shimmer Effect */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    @apply animate-shimmer;
+    background-size: 200% 100%;
+  }
+
+  /* Icon Container */
+  .icon-container {
+    @apply flex items-center justify-center;
+    @apply w-12 h-12 rounded-xl;
+    @apply bg-white/10 backdrop-blur-sm;
+    @apply border border-white/20;
+    @apply transition-all duration-300;
+    @apply hover:bg-white/20 hover:scale-110;
+  }
+
+  /* Data Grid */
+  .data-grid {
+    @apply grid gap-4;
+    @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-3;
+  }
+
+  /* Chart Container */
+  .chart-container {
+    @apply glass-panel p-6;
+    @apply relative;
+  }
+
+  /* Tab Button */
+  .tab-button {
+    @apply px-6 py-3 rounded-xl;
+    @apply font-medium text-white/70;
+    @apply transition-all duration-300;
+    @apply hover:text-white hover:bg-white/5;
+    @apply border-b-2 border-transparent;
+  }
+
+  .tab-button.active {
+    @apply text-white bg-white/10;
+    @apply border-green-500;
+  }
+}
+
+/* =====================================================
+   Utility Classes
+   ===================================================== */
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  }
+
+  .backdrop-blur-ultra {
+    backdrop-filter: blur(40px);
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+}
