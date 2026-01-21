@@ -1273,7 +1273,7 @@ function SE.Integrations.GetVehicles(cidOrSrc)
         dv.price,
         dv.name
       FROM player_vehicles pv
-      LEFT JOIN dealership_vehicles dv ON dv.model = pv.vehicle
+      LEFT JOIN dealership_vehicles dv ON dv.model COLLATE utf8mb4_unicode_ci = pv.vehicle COLLATE utf8mb4_unicode_ci
       WHERE pv.citizenid = ?
     ]], { citizenid }) or {}
 
