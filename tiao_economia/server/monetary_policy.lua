@@ -249,8 +249,9 @@ function MP.ReviewAutonomy()
     (SE.State and SE.State.vaultBalance) or 0
 
   local settings = ensurePolicySettings() or {}
-  local taxStep = Config.Inflation.TaxStep or 0.05
-  local inflStep = Config.Inflation.InflationStep or 0.05
+  local inflCfg = Config.Inflation or {}
+  local taxStep = inflCfg.TaxStep or 0.05
+  local inflStep = inflCfg.InflationStep or 0.05
 
   local curInflation = (SE.Server and SE.Server.GetInflationRate and SE.Server.GetInflationRate())
     or (SE.State and SE.State.inflationRate) or 1.0
@@ -258,12 +259,12 @@ function MP.ReviewAutonomy()
     or (SE.State and SE.State.taxMultiplier) or 1.0
 
   -- Velocidade do dinheiro: economia aquecida
-  if velocity >= (Config.Inflation.VelocityHigh or 1.2) then
+  if velocity >= (inflCfg.VelocityHigh or 1.2) then
     curInflation = curInflation + inflStep
     curTax = curTax + taxStep
     U.dbg('[Monetary Policy] Autonomia: economia aquecida, ajustando inflação/impostos')
 
-  elseif velocity <= (Config.Inflation.VelocityLow or 0.6) then
+  elseif velocity <= (inflCfg.VelocityLow or 0.6) then
     curInflation = curInflation - inflStep
     curTax = curTax - taxStep
     U.dbg('[Monetary Policy] Autonomia: economia fria, reduzindo inflação/impostos')
@@ -305,42 +306,32 @@ function MP.ReviewAutonomy()
     SE.Server.MarkDirty()
   end
 
+  -- Circuit breaker: validar mudanças antes de aplicar
   local currentInflation = (SE.Server and SE.Server.GetInflationRate and SE.Server.GetInflationRate())
     or (SE.State and SE.State.inflationRate) or 1.0
   local currentTax = (SE.Server and SE.Server.GetTaxMultiplier and SE.Server.GetTaxMultiplier())
     or (SE.State and SE.State.taxMultiplier) or 1.0
 
-  local inflationDiffHard = math.abs(curInflation - currentInflation)
-  if inflationDiffHard > MAX_INFLATION_SHIFT then
-    print('[Monetary Policy] ALERTA: Tentativa de ajuste econômico agressivo bloqueada')
-    return
-  end
-
-  if curTax > MAX_TAX_RATE or curTax < MIN_TAX_RATE then
-    print('[Monetary Policy] ALERTA: Tentativa de ajuste econômico agressivo bloqueada')
-    return
-  end
-
-  -- Circuit breaker: validar mudanças antes de aplicar
   local cb = getCircuitConfig()
-  local maxDelta = cb.MaxInflationDeltaPerHour or 0.05
-  local maxTax = cb.MaxTaxMultiplier or 0.40
+  local maxInflationDelta = math.min(MAX_INFLATION_SHIFT, cb.MaxInflationDeltaPerHour or 0.05)
+  local maxTaxAbsolute = math.min(MAX_TAX_RATE, cb.MaxTaxMultiplier or 0.40)
 
   local inflationDiff = math.abs(curInflation - currentInflation)
   local taxDiff = math.abs(curTax - currentTax)
 
-  if inflationDiff > maxDelta then
-    triggerCircuitBreaker(('Inflação excedeu limite: Δ=%.4f'):format(inflationDiff))
+  -- Validação consolidada
+  if inflationDiff > maxInflationDelta then
+    triggerCircuitBreaker(('Inflação excedeu limite: Δ=%.4f (max: %.4f)'):format(inflationDiff, maxInflationDelta))
     return
   end
 
-  if curTax > maxTax then
-    triggerCircuitBreaker(('Taxa excedeu limite absoluto: %.4f'):format(curTax))
+  if curTax > maxTaxAbsolute or curTax < MIN_TAX_RATE then
+    triggerCircuitBreaker(('Taxa fora dos limites: %.4f (min: %.4f, max: %.4f)'):format(curTax, MIN_TAX_RATE, maxTaxAbsolute))
     return
   end
 
-  if taxDiff > maxDelta then
-    triggerCircuitBreaker(('Taxa excedeu limite de variação: Δ=%.4f'):format(taxDiff))
+  if taxDiff > maxInflationDelta then
+    triggerCircuitBreaker(('Taxa excedeu limite de variação: Δ=%.4f (max: %.4f)'):format(taxDiff, maxInflationDelta))
     return
   end
 

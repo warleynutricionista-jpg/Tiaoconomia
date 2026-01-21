@@ -9,6 +9,41 @@ SE.BankingSystem = SE.BankingSystem or {}
 local U = SE.Util
 local BS = SE.BankingSystem
 
+--============================================================
+-- Função centralizada de parse de timestamp
+--============================================================
+local function parseTimestamp(dateStr)
+  if not dateStr or type(dateStr) ~= 'string' then
+    U.dbg('[Banking] Erro: timestamp inválido - ' .. tostring(dateStr))
+    return nil
+  end
+
+  local year, month, day, hour, min, sec = dateStr:match('(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)')
+
+  if not year then
+    U.dbg('[Banking] Erro: formato de timestamp inválido - ' .. dateStr)
+    return nil
+  end
+
+  local ok, timestamp = pcall(function()
+    return os.time({
+      year = tonumber(year),
+      month = tonumber(month),
+      day = tonumber(day),
+      hour = tonumber(hour),
+      min = tonumber(min),
+      sec = tonumber(sec)
+    })
+  end)
+
+  if not ok or not timestamp then
+    U.dbg('[Banking] Erro ao converter timestamp - ' .. dateStr)
+    return nil
+  end
+
+  return timestamp
+end
+
 local function registerTransaction(category, amount, meta)
   if SE
     and SE.EconomyMonitor
@@ -252,19 +287,14 @@ function BS.Redeem(src, investmentId)
   -- Calcular rendimento
   local investedAt = investment.created_at
   local now = os.time()
-  local investedTimestamp = 0
 
-  -- Parse timestamp
-  local year, month, day, hour, min, sec = investedAt:match('(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)')
-  if year then
-    investedTimestamp = os.time({
-      year = tonumber(year),
-      month = tonumber(month),
-      day = tonumber(day),
-      hour = tonumber(hour),
-      min = tonumber(min),
-      sec = tonumber(sec)
+  local investedTimestamp = parseTimestamp(investedAt)
+  if not investedTimestamp then
+    TriggerClientEvent('ox_lib:notify', src, {
+      type = 'error',
+      description = 'Erro ao processar data de investimento'
     })
+    return false
   end
 
   local daysInvested = math.max(0, (now - investedTimestamp) / 86400)
@@ -371,27 +401,18 @@ function BS.GetInvestments(citizenid)
       local currentTax = 0
 
       if not inv.redeemed_at then
-        local investedTimestamp = 0
-        local year, month, day, hour, min, sec = inv.created_at:match('(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)')
-        if year then
-          investedTimestamp = os.time({
-            year = tonumber(year),
-            month = tonumber(month),
-            day = tonumber(day),
-            hour = tonumber(hour),
-            min = tonumber(min),
-            sec = tonumber(sec)
-          })
+        local investedTimestamp = parseTimestamp(inv.created_at)
+
+        if investedTimestamp then
+          local daysInvested = math.max(0, (os.time() - investedTimestamp) / 86400)
+          local grossYield = product.calculateYield(inv.amount, daysInvested)
+
+          if not product.taxFree and product.taxRate then
+            currentTax = grossYield * product.taxRate
+          end
+
+          currentYield = grossYield - currentTax
         end
-
-        local daysInvested = math.max(0, (os.time() - investedTimestamp) / 86400)
-        local grossYield = product.calculateYield(inv.amount, daysInvested)
-
-        if not product.taxFree and product.taxRate then
-          currentTax = grossYield * product.taxRate
-        end
-
-        currentYield = grossYield - currentTax
       end
 
       table.insert(result, {
@@ -509,9 +530,12 @@ CreateThread(function()
   -- Aguardar inicialização
   Wait(30000)
 
+  -- Configuração: aplicar rendimentos a cada 24 horas (diário)
+  local YIELD_INTERVAL_MS = 24 * 60 * 60 * 1000  -- 24 horas
+  local YIELD_DAYS_PER_CYCLE = 1  -- 1 dia de rendimento por ciclo
+
   while true do
-    -- A cada 2 horas (em produção seria mensal)
-    Wait(7200000)
+    Wait(YIELD_INTERVAL_MS)
 
     if not MySQL then
       Wait(60000)
@@ -520,33 +544,38 @@ CreateThread(function()
 
     U.dbg('[Banking] Processing automatic yields for poupanca...')
 
-    -- Buscar todos os investimentos em poupança ativos
-    local investments = MySQL.query.await([[
-      SELECT id, citizenid, amount, created_at
-      FROM space_economy_investments
-      WHERE product_id = 'poupanca' AND redeemed_at IS NULL
-    ]], {})
+    local ok, err = pcall(function()
+      -- Buscar todos os investimentos em poupança ativos
+      local investments = MySQL.query.await([[
+        SELECT id, citizenid, amount, created_at
+        FROM space_economy_investments
+        WHERE product_id = 'poupanca' AND redeemed_at IS NULL
+      ]], {})
 
-    if investments then
-      for _, inv in ipairs(investments) do
-        local product = Products.poupanca
+      if investments then
+        for _, inv in ipairs(investments) do
+          local product = Products.poupanca
 
-        -- Calcular rendimento do período
-        local daysInvested = 60  -- Período de 2h = aproximadamente 2 meses simulados
+          -- Calcular rendimento de 1 dia
+          local grossYield = product.calculateYield(inv.amount, YIELD_DAYS_PER_CYCLE)
 
-        local grossYield = product.calculateYield(inv.amount, daysInvested)
+          -- Atualizar saldo
+          MySQL.execute.await([[
+            UPDATE space_economy_investments
+            SET amount = amount + ?
+            WHERE id = ?
+          ]], { grossYield, inv.id })
 
-        -- Atualizar saldo
-        MySQL.execute.await([[
-          UPDATE space_economy_investments
-          SET amount = amount + ?
-          WHERE id = ?
-        ]], { grossYield, inv.id })
+          U.dbg(('[Banking] Poupanca #%d - Daily Yield: $%.2f'):format(inv.id, grossYield))
+          Wait(0)  -- Yield para não bloquear thread
+        end
 
-        U.dbg(('[Banking] Poupanca #%d - Yield: $%.2f'):format(inv.id, grossYield))
+        U.dbg(('[Banking] Processed %d poupanca investments'):format(#investments))
       end
+    end)
 
-      U.dbg(('[Banking] Processed %d poupanca investments'):format(#investments))
+    if not ok then
+      U.dbg('[Banking] Erro ao processar rendimentos: ' .. tostring(err))
     end
 
     ::continue::
