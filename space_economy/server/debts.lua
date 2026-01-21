@@ -927,4 +927,16 @@ RegisterNetEvent('space_economy:server_listMyDebts', function()
   TriggerClientEvent('space_economy:client_receiveMyDebts', src, debts)
 end)
 
+exports('CreateDebt', function(citizenid, amount, reason, dueTimestamp, meta)
+  return Debts.Upsert(citizenid, amount, reason, dueTimestamp, meta)
+end)
+
+exports('PayDebt', function(src, debtId, amount)
+  return Debts.Pay(debtId, src, amount)
+end)
+
+exports('GetPlayerDebts', function(citizenid, limit)
+  return Debts.GetActiveByCitizen(citizenid, limit or 50)
+end)
+
 dbg('debts.lua (MELHORADO) carregado - ps-banking sync ativo.')

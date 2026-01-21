@@ -34,6 +34,7 @@ export const showIndseat = writable(false);
 export const showStats = writable(false);
 export const showAccounts = writable(false);
 export const showATM = writable(false);
+export const showInvestments = writable(false);
 export const currentCash = writable(0);
 export const bankBalance = writable(0);
 
