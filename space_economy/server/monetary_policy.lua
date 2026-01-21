@@ -532,6 +532,18 @@ function MP.GetReport()
   }
 end
 
+function MP.GetSELIC()
+  return PolicyState.selic
+end
+
+function MP.GetInflation()
+  return PolicyState.inflation.annual
+end
+
+function MP.GetMonthlyInflation()
+  return PolicyState.inflation.monthly
+end
+
 --============================================================
 -- Comando: Relatório de Política Monetária
 --============================================================
@@ -786,9 +798,9 @@ end)
 --============================================================
 -- Exports
 --============================================================
-exports('GetSELIC', function() return PolicyState.selic end)
-exports('GetInflation', function() return PolicyState.inflation.annual end)
-exports('GetMonthlyInflation', function() return PolicyState.inflation.monthly end)
+exports('GetSELIC', MP.GetSELIC)
+exports('GetInflation', MP.GetInflation)
+exports('GetMonthlyInflation', MP.GetMonthlyInflation)
 exports('AdjustPriceForInflation', MP.AdjustPriceForInflation)
 exports('GetMonetaryPolicyReport', MP.GetReport)
 exports('AdjustIPCCategory', MP.AdjustIPCCategory)
