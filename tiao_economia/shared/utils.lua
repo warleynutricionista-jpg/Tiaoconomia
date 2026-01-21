@@ -81,6 +81,28 @@ function U.cfg(path, default, root)
   return cur
 end
 
+-- Formata número com separador de milhar
+function U.formatNumber(n)
+  n = U.toNumber(n, 0)
+  local formatted = tostring(math.floor(n))
+  local k
+  while true do
+    formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+    if k == 0 then break end
+  end
+  return formatted
+end
+
+-- Conta elementos em uma tabela
+function U.tableCount(t)
+  if type(t) ~= 'table' then return 0 end
+  local count = 0
+  for _ in pairs(t) do
+    count = count + 1
+  end
+  return count
+end
+
 -- Guard padrão: sempre usar para obter PlayerData sem nil
 function U.GetPlayerDataSafe(src)
   if not src then return nil end

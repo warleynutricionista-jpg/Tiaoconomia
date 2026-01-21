@@ -194,11 +194,31 @@ local function getAllPlayers(columns)
   return rows, columns
 end
 
-local function getAssetTotals(tableName, priceColumn)
+local function getAssetTotals(tableName, priceColumnCandidates)
   if not tableExists(tableName) then return {} end
-  local sql = ('SELECT citizenid, COALESCE(SUM(%s),0) as total, COUNT(*) as count FROM %s GROUP BY citizenid'):format(
+
+  -- Detecta dinamicamente qual coluna de preço existe na tabela
+  local cols = columnsOf(tableName)
+  local priceColumn = pickColumn(cols, priceColumnCandidates)
+
+  -- Se não encontrar coluna de preço, retorna vazio
+  if not priceColumn then
+    print('^3[wealth_tax]^7 Aviso: Nenhuma coluna de preço encontrada em ' .. tableName)
+    return {}
+  end
+
+  -- Verifica se tem coluna citizenid
+  local citizenCol = pickColumn(cols, {'citizenid', 'owner', 'identifier'})
+  if not citizenCol then
+    print('^3[wealth_tax]^7 Aviso: Nenhuma coluna de cidadão encontrada em ' .. tableName)
+    return {}
+  end
+
+  local sql = ('SELECT `%s` as citizenid, COALESCE(SUM(`%s`),0) as total, COUNT(*) as count FROM `%s` GROUP BY `%s`'):format(
+    citizenCol,
     priceColumn,
-    tableName
+    tableName,
+    citizenCol
   )
   local rows = MySQL.query.await(sql) or {}
   local out = {}
@@ -279,8 +299,8 @@ function WT.BuildWealthSnapshot()
   local columns = countMoneyTables()
   local rows = getAllPlayers(columns)
 
-  local vehicleTotals = getAssetTotals('player_vehicles', 'price')
-  local propertyTotals = getAssetTotals('player_houses', 'price')
+  local vehicleTotals = getAssetTotals('player_vehicles', {'price', 'buy_price', 'value'})
+  local propertyTotals = getAssetTotals('player_houses', {'price', 'value', 'buy_price'})
 
   local list = {}
   for _, row in ipairs(rows) do
