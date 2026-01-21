@@ -443,6 +443,96 @@
     </section>
 
     <!-- =====================================================
+         TAX PAYMENT PANEL - Player Interface
+    ===================================================== -->
+    <section class="card" id="tax-panel" style="width: min(900px, 95vw); max-height: 90vh; display: flex; flex-direction: column;">
+      <header class="card-header">
+        <div>
+          <h2 class="card-title">
+            <span class="card-title-icon">🧾</span>
+            Painel de Impostos
+          </h2>
+          <p class="card-subtitle">Visualize e pague seus impostos pendentes</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="btn btn-icon btn-secondary" data-action="refresh-player-taxes" title="Atualizar">🔄</button>
+          <button class="btn btn-icon btn-secondary" data-close title="Fechar">✖</button>
+        </div>
+      </header>
+
+      <div class="card-content" style="flex: 1; overflow-y: auto;">
+        <!-- Summary Cards -->
+        <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+          <div class="metric-card">
+            <div class="metric-label">Total Pendente</div>
+            <div class="metric-value money" id="player-tax-total">$0</div>
+            <div class="metric-subtitle">Impostos a pagar</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Impostos Pendentes</div>
+            <div class="metric-value" id="player-tax-count">0</div>
+            <div class="metric-subtitle">Itens na lista</div>
+          </div>
+        </div>
+
+        <!-- Tax List -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Impostos Pendentes</h3>
+          </div>
+          <div id="player-tax-list" class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Motivo</th>
+                  <th>Valor</th>
+                  <th>Vencimento</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="player-tax-tbody">
+                <tr>
+                  <td colspan="5" class="text-center text-muted">Carregando impostos...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tax History -->
+        <div class="panel" style="margin-top: 1.5rem;">
+          <div class="panel-header">
+            <h3 class="panel-title">Histórico de Pagamentos</h3>
+            <button class="btn btn-secondary btn-sm" data-action="load-player-tax-history">Ver Histórico</button>
+          </div>
+          <div id="player-tax-history" class="table-container hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="player-tax-history-tbody">
+                <tr>
+                  <td colspan="4" class="text-center text-muted">Sem histórico</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <footer class="card-actions">
+        <button class="btn btn-secondary" data-close>Fechar</button>
+        <button class="btn btn-success" id="pay-all-taxes-btn" disabled>Pagar Todas ($0)</button>
+      </footer>
+    </section>
+
+    <!-- =====================================================
          SIMPLE MODALS & DIALOGS
     ===================================================== -->
 
