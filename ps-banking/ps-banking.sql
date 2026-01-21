@@ -1,38 +1,111 @@
+-- =====================================================
+-- PS-Banking Database Schema
+-- Enhanced version with indexes, constraints, and logs
+-- =====================================================
 
-CREATE TABLE
-    `ps_banking_transactions` (
-        `id` INT NOT NULL AUTO_INCREMENT,
-        `identifier` VARCHAR(50) NOT NULL,
-        `description` VARCHAR(255) NOT NULL,
-        `type` VARCHAR(50) NOT NULL,
-        `amount` DECIMAL(20, 2) NOT NULL,
-        `date` DATE NOT NULL,
-        `isIncome` BOOLEAN NOT NULL,
-        PRIMARY KEY (`id`)
-    ) ENGINE = InnoDB;
+-- Transactions table with improved structure
+CREATE TABLE IF NOT EXISTS `ps_banking_transactions` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `identifier` VARCHAR(50) NOT NULL,
+    `description` VARCHAR(255) NOT NULL,
+    `type` VARCHAR(50) NOT NULL,
+    `amount` DECIMAL(20, 2) NOT NULL,
+    `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `isIncome` BOOLEAN NOT NULL,
+    `account_id` INT NULL,
+    `metadata` JSON NULL,
+    PRIMARY KEY (`id`),
+    INDEX `idx_identifier` (`identifier`),
+    INDEX `idx_date` (`date`),
+    INDEX `idx_type` (`type`),
+    INDEX `idx_identifier_date` (`identifier`, `date`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE
-    `ps_banking_bills` (
-        `id` INT NOT NULL AUTO_INCREMENT,
-        `identifier` VARCHAR(50) NOT NULL,
-        `description` VARCHAR(255) NOT NULL,
-        `type` VARCHAR(50) NOT NULL,
-        `amount` DECIMAL(20, 2) NOT NULL,
-        `date` DATE NOT NULL,
-        `isPaid` BOOLEAN NOT NULL,
-        PRIMARY KEY (`id`)
-    ) ENGINE = InnoDB;
+-- Bills table with improved structure
+CREATE TABLE IF NOT EXISTS `ps_banking_bills` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `identifier` VARCHAR(50) NOT NULL,
+    `identifier2` VARCHAR(50) NULL,
+    `description` VARCHAR(255) NOT NULL,
+    `type` VARCHAR(50) NOT NULL,
+    `amount` DECIMAL(20, 2) NOT NULL CHECK (`amount` > 0),
+    `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `due_date` DATETIME NULL,
+    `isPaid` BOOLEAN NOT NULL DEFAULT 0,
+    `paid_date` DATETIME NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_identifier` (`identifier`),
+    INDEX `idx_identifier2` (`identifier2`),
+    INDEX `idx_isPaid` (`isPaid`),
+    INDEX `idx_due_date` (`due_date`),
+    INDEX `idx_identifier_paid` (`identifier`, `isPaid`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE
-    `ps_banking_accounts` (
-        `id` INT NOT NULL AUTO_INCREMENT,
-        `balance` BIGINT NOT NULL,
-        `holder` VARCHAR(255) NOT NULL,
-        `cardNumber` VARCHAR(255) NOT NULL,
-        `users` JSON NOT NULL,
-        `owner` JSON NOT NULL,
-        PRIMARY KEY (`id`)
-    ) ENGINE = InnoDB;
+-- Accounts table with improved structure
+CREATE TABLE IF NOT EXISTS `ps_banking_accounts` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `balance` BIGINT NOT NULL DEFAULT 0 CHECK (`balance` >= 0),
+    `holder` VARCHAR(255) NOT NULL,
+    `cardNumber` VARCHAR(255) NOT NULL,
+    `users` JSON NOT NULL,
+    `owner` JSON NOT NULL,
+    `status` ENUM('active', 'frozen', 'closed') NOT NULL DEFAULT 'active',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `unique_holder` (`holder`),
+    UNIQUE KEY `unique_cardNumber` (`cardNumber`),
+    INDEX `idx_status` (`status`),
+    INDEX `idx_holder` (`holder`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Investments table for tracking player investments
+CREATE TABLE IF NOT EXISTS `ps_banking_investments` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `identifier` VARCHAR(50) NOT NULL,
+    `product_id` VARCHAR(50) NOT NULL,
+    `amount` DECIMAL(20, 2) NOT NULL CHECK (`amount` > 0),
+    `invested_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `redeemable_at` DATETIME NOT NULL,
+    `redeemed_at` DATETIME NULL,
+    `status` ENUM('active', 'redeemed', 'cancelled') NOT NULL DEFAULT 'active',
+    `return_amount` DECIMAL(20, 2) NULL,
+    PRIMARY KEY (`id`),
+    INDEX `idx_identifier` (`identifier`),
+    INDEX `idx_status` (`status`),
+    INDEX `idx_redeemable_at` (`redeemable_at`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Audit log table for tracking all banking operations
+CREATE TABLE IF NOT EXISTS `ps_banking_audit_log` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `action` VARCHAR(100) NOT NULL,
+    `identifier` VARCHAR(50) NOT NULL,
+    `target_identifier` VARCHAR(50) NULL,
+    `account_id` INT NULL,
+    `amount` DECIMAL(20, 2) NULL,
+    `details` JSON NULL,
+    `ip_address` VARCHAR(45) NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_action` (`action`),
+    INDEX `idx_identifier` (`identifier`),
+    INDEX `idx_created_at` (`created_at`),
+    INDEX `idx_account_id` (`account_id`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Transfer limits table for security
+CREATE TABLE IF NOT EXISTS `ps_banking_transfer_limits` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `identifier` VARCHAR(50) NOT NULL,
+    `daily_transferred` DECIMAL(20, 2) NOT NULL DEFAULT 0,
+    `last_reset` DATE NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `unique_identifier` (`identifier`),
+    INDEX `idx_last_reset` (`last_reset`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   
     
