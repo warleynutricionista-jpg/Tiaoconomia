@@ -343,7 +343,7 @@ RegisterNetEvent('space_economy:server_getDashboardMetrics', function()
     TriggerClientEvent('space_economy:client_dashboardMetrics', src, dashboard)
 end)
 
-RegisterNetEvent('tiao_economia:getAdminDashboardData', function()
+RegisterNetEvent('space_economy:getAdminDashboardData', function()
     local src = source
     local dashboard = SE.Metrics.GetAdminDashboardData()
     TriggerClientEvent('space_economy:client_adminData', src, 'admin_dashboard', dashboard)

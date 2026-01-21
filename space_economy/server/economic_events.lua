@@ -139,15 +139,15 @@ end
 
 local function pickAutoOutcome(event)
   local inflation = 0
-  if exports and exports.tiao_economia and exports.tiao_economia.GetMonthlyInflation then
-    inflation = exports.tiao_economia:GetMonthlyInflation() or 0
+  if SE.MonetaryPolicy and SE.MonetaryPolicy.GetMonthlyInflation then
+    inflation = SE.MonetaryPolicy.GetMonthlyInflation() or 0
   elseif SE.Server and SE.Server.GetInflationRate then
     inflation = SE.Server.GetInflationRate() - 1.0
   end
 
   local unemployment = 0.05
-  if exports and exports.tiao_economia and exports.tiao_economia.GetUnemploymentRate then
-    unemployment = exports.tiao_economia:GetUnemploymentRate() or unemployment
+  if SE.LaborMarket and SE.LaborMarket.GetUnemploymentRate then
+    unemployment = SE.LaborMarket.GetUnemploymentRate() or unemployment
   end
 
   local treasury = (SE.Treasury and SE.Treasury.GetBalance and SE.Treasury.GetBalance()) or 0
@@ -219,8 +219,8 @@ local function getMacroMultiplier()
   end
 
   local inflation = 0
-  if exports and exports.tiao_economia and exports.tiao_economia.GetMonthlyInflation then
-    inflation = exports.tiao_economia:GetMonthlyInflation() or 0
+  if SE.MonetaryPolicy and SE.MonetaryPolicy.GetMonthlyInflation then
+    inflation = SE.MonetaryPolicy.GetMonthlyInflation() or 0
   end
   if inflation > 0.06 then
     mult = mult + 0.10
@@ -548,7 +548,7 @@ function EE.ApplyEffects(effects, apply, context)
 
   -- Inflação (via Monetary Policy)
   if effects.inflation and SE.MonetaryPolicy then
-    local current = exports.tiao_economia:GetMonthlyInflation() or 0
+    local current = SE.MonetaryPolicy.GetMonthlyInflation() or 0
     local newInflation = current + (effects.inflation * multiplier)
     -- Aplicado automaticamente pelo sistema
     U.dbg(('[Economic Events] Inflation effect: %+.1f%%'):format(effects.inflation * 100 * multiplier))
@@ -556,7 +556,7 @@ function EE.ApplyEffects(effects, apply, context)
 
   -- SELIC (via Monetary Policy)
   if effects.selic and SE.MonetaryPolicy then
-    local current = exports.tiao_economia:GetSELIC() or 0
+    local current = SE.MonetaryPolicy.GetSELIC() or 0
     -- COPOM ajustará automaticamente
     U.dbg(('[Economic Events] SELIC pressure: %+.2f%%'):format(effects.selic * 100 * multiplier))
   end
@@ -564,19 +564,19 @@ function EE.ApplyEffects(effects, apply, context)
   -- IPC por categoria
   if SE.MonetaryPolicy then
     if effects.ipc_alimentacao then
-      exports.tiao_economia:AdjustIPCCategory('alimentacao', effects.ipc_alimentacao * 100 * multiplier)
+      SE.MonetaryPolicy.AdjustIPCCategory('alimentacao', effects.ipc_alimentacao * 100 * multiplier)
     end
     if effects.ipc_transporte then
-      exports.tiao_economia:AdjustIPCCategory('transporte', effects.ipc_transporte * 100 * multiplier)
+      SE.MonetaryPolicy.AdjustIPCCategory('transporte', effects.ipc_transporte * 100 * multiplier)
     end
     if effects.ipc_habitacao then
-      exports.tiao_economia:AdjustIPCCategory('habitacao', effects.ipc_habitacao * 100 * multiplier)
+      SE.MonetaryPolicy.AdjustIPCCategory('habitacao', effects.ipc_habitacao * 100 * multiplier)
     end
     if effects.ipc_saude then
-      exports.tiao_economia:AdjustIPCCategory('saude', effects.ipc_saude * 100 * multiplier)
+      SE.MonetaryPolicy.AdjustIPCCategory('saude', effects.ipc_saude * 100 * multiplier)
     end
     if effects.ipc_lazer then
-      exports.tiao_economia:AdjustIPCCategory('lazer', effects.ipc_lazer * 100 * multiplier)
+      SE.MonetaryPolicy.AdjustIPCCategory('lazer', effects.ipc_lazer * 100 * multiplier)
     end
   end
 

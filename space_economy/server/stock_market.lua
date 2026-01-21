@@ -223,8 +223,8 @@ function SM.UpdatePrices()
   end
 
   if SE.MonetaryPolicy then
-    inflation = exports.tiao_economia:GetMonthlyInflation() or 0
-    selic = exports.tiao_economia:GetSELIC() or 0
+    inflation = SE.MonetaryPolicy.GetMonthlyInflation() or 0
+    selic = SE.MonetaryPolicy.GetSELIC() or 0
   end
 
   -- Atualizar cada empresa

@@ -65,7 +65,7 @@ local Products = {
     liquidity = 'imediata',
     taxFree = true,
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       local yield = selic * 0.70  -- 70% da SELIC
       return amount * yield * (days / 30)
     end,
@@ -81,7 +81,7 @@ local Products = {
     liquidity = '30 dias',
     taxRate = 0.225,  -- IR 22.5%
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       local cdi = selic * 0.99  -- CDI ≈ 99% SELIC
       local yield = cdi * 0.90  -- 90% CDI
       return amount * yield * (days / 30)
@@ -98,7 +98,7 @@ local Products = {
     liquidity = '60 dias',
     taxRate = 0.20,  -- IR 20%
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       local cdi = selic * 0.99
       local yield = cdi * 1.00  -- 100% CDI
       return amount * yield * (days / 30)
@@ -115,7 +115,7 @@ local Products = {
     liquidity = '90 dias',
     taxRate = 0.175,  -- IR 17.5%
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       local cdi = selic * 0.99
       local yield = cdi * 1.10  -- 110% CDI
       return amount * yield * (days / 30)
@@ -132,7 +132,7 @@ local Products = {
     liquidity = '180 dias',
     taxRate = 0.175,  -- IR 17.5%
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       local cdi = selic * 0.99
       local yield = cdi * 1.20  -- 120% CDI
       return amount * yield * (days / 30)
@@ -149,7 +149,7 @@ local Products = {
     liquidity = '90 dias',
     taxFree = true,
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       local cdi = selic * 0.99
       local yield = cdi * 0.85  -- 85% CDI
       return amount * yield * (days / 30)
@@ -165,7 +165,7 @@ local Products = {
     liquidity = 'imediata',
     taxRate = 0.15,  -- IR 15%
     calculateYield = function(amount, days)
-      local selic = exports.tiao_economia:GetSELIC() or 0.005
+      local selic = SE.MonetaryPolicy.GetSELIC() or 0.005
       return amount * selic * (days / 30)
     end,
   },
