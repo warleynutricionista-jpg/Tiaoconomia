@@ -69,6 +69,12 @@ server_scripts {
   'server/hooks.lua',            -- Hooks universais de transação
   'server/organizations.lua',    -- Organizações/empresas de players
 
+  -- Sistema de Integração Centralizada v4.1 (NOVO)
+  'server/service_registry.lua',        -- Registro central de serviços
+  'server/dynamic_pricing.lua',         -- Balanceamento dinâmico de preços
+  'server/transaction_interceptor.lua', -- Interceptador de transações
+  'server/integration_monitor.lua',     -- Painel de monitoramento
+
   -- Admin & Events
   'server/admin.lua',
   'server/events.lua',
@@ -288,4 +294,27 @@ exports {
   'AddOrganizationProduct',
   'BuyOrganizationProduct',
   'GetOrganizationBalance',
+}
+
+-- Service Registry (v4.1)
+exports {
+  'RegisterService',
+  'GetService',
+  'GetAllServices',
+  'GetUnregisteredServices',
+}
+
+-- Dynamic Pricing (v4.1)
+exports {
+  'GetPrice',
+  'CalcPrice',
+  'RegisterServicePrices',
+  'GetServicePrices',
+  'GetGlobalPriceMultiplier',
+}
+
+-- Transaction Interceptor (v4.1)
+exports {
+  'EnableBlocking',
+  'GetStatistics',
 }
