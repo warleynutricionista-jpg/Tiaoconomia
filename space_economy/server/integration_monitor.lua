@@ -529,10 +529,10 @@ Citizen.CreateThread(function()
 end)
 
 -- Exporta
-exports('GetMonitoringData', function()
+function GetMonitoringData()
     return IM.CollectMonitoringData()
-end)
+end
 
-exports('GenerateDailyReport', function()
+function GenerateDailyReport()
     return IM.GenerateDailyReport()
-end)
+end

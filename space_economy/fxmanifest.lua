@@ -323,3 +323,9 @@ exports {
   'EnableBlocking',
   'GetStatistics',
 }
+
+-- Integration Monitor (v4.1)
+exports {
+  'GetMonitoringData',
+  'GenerateDailyReport',
+}
