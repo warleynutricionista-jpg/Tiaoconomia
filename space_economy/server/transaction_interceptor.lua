@@ -304,7 +304,7 @@ end
 ---@param args table
 function TI.LogExportCall(invokingResource, targetResource, exportName, args)
     -- Similar ao LogInterception, mas para exports
-    if Config.Debug then
+    if Config and Config.Debug then
         print(('^5[TransactionInterceptor] Export Call: %s -> %s:%s^7'):format(
             invokingResource,
             targetResource,
@@ -316,6 +316,21 @@ end
 -- =====================================================
 -- APLICAÇÃO AUTOMÁTICA DE IMPOSTOS
 -- =====================================================
+
+---Busca um imposto no catálogo pelo key
+---@param key string
+---@return table|nil tax
+local function GetTaxFromCatalog(key)
+    if not Config or not Config.TaxCatalog then return nil end
+
+    for _, tax in ipairs(Config.TaxCatalog) do
+        if tax.key == key then
+            return tax
+        end
+    end
+
+    return nil
+end
 
 ---Aplica impostos a uma transação interceptada
 ---@param source number
@@ -338,13 +353,15 @@ function TI.ApplyTaxesToTransaction(source, transactionData, service)
 
     if service.type == SE.ServiceRegistry.ServiceTypes.LEGAL then
         taxType = 'ISS' -- Imposto sobre serviços
-        taxRate = Config.TaxCatalog.ISS.percent / 100
+        local issTax = GetTaxFromCatalog('ISS')
+        taxRate = issTax and (issTax.percent / 100) or 0.02 -- 2% padrão
     elseif service.type == SE.ServiceRegistry.ServiceTypes.ILLEGAL then
         taxType = 'ILLEGAL_TAX' -- Taxa sobre atividades ilegais
         taxRate = 0.05 -- 5% padrão
     elseif service.type == SE.ServiceRegistry.ServiceTypes.ORGANIZATIONS then
         taxType = 'ICMS' -- Imposto sobre mercadorias
-        taxRate = Config.TaxCatalog.ICMS.percent / 100
+        local icmsTax = GetTaxFromCatalog('ICMS')
+        taxRate = icmsTax and (icmsTax.percent / 100) or 0.12 -- 12% padrão
     end
 
     if not taxType then
@@ -355,24 +372,31 @@ function TI.ApplyTaxesToTransaction(source, transactionData, service)
 
     if taxAmount > 0 then
         -- Cria uma dívida ou desconta direto
-        if Config.TaxCollection.CreateDebtInsteadOfDirectCharge then
-            SE.Debts.Create(source, taxAmount, taxType, {
-                reason = 'Imposto sobre transação: ' .. (transactionData.reason or ''),
-                resource = service.resource,
-                auto_charged = true
-            })
+        local taxCollection = Config.TaxCollection or {}
+        if taxCollection.CreateDebtInsteadOfDirectCharge then
+            if SE.Debts and SE.Debts.Create then
+                SE.Debts.Create(source, taxAmount, taxType, {
+                    reason = 'Imposto sobre transação: ' .. (transactionData.reason or ''),
+                    resource = service.resource,
+                    auto_charged = true
+                })
+            end
         else
             -- Remove o imposto direto
-            SE.Integrations.RemoveMoney(source, taxAmount, 'bank', 'imposto_' .. taxType:lower())
+            if SE.Integrations and SE.Integrations.RemoveMoney then
+                SE.Integrations.RemoveMoney(source, taxAmount, 'bank', 'imposto_' .. taxType:lower())
+            end
 
             -- Deposita no tesouro
-            SE.Treasury.Deposit(taxAmount, 'imposto_' .. taxType:lower(), {
-                source = source,
-                service = service.name
-            })
+            if SE.Treasury and SE.Treasury.Deposit then
+                SE.Treasury.Deposit(taxAmount, 'imposto_' .. taxType:lower(), {
+                    source = source,
+                    service = service.name
+                })
+            end
         end
 
-        print(('^3[TransactionInterceptor] Imposto aplicado: %s - $%s (%s%%)^7'):format(
+        print(('^3[TransactionInterceptor] Imposto aplicado: %s - $%s (%.1f%%)^7'):format(
             taxType,
             SE.Format.Money(taxAmount),
             taxRate * 100

@@ -63,8 +63,66 @@ CreateThread(function()
 end)
 
 --============================================================
+-- Helpers e Utilidades
+--============================================================
+
+-- Módulo de formatação
+SE.Format = SE.Format or {}
+
+function SE.Format.Money(amount)
+  amount = tonumber(amount) or 0
+  local formatted = tostring(math.floor(amount))
+  local k
+  while true do
+    formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+    if k == 0 then break end
+  end
+  return formatted
+end
+
+function SE.Format.Number(n)
+  n = tonumber(n) or 0
+  return SE.Format.Money(n)
+end
+
+-- Módulo de permissões
+SE.Permissions = SE.Permissions or {}
+
+function SE.Permissions.IsAdmin(source)
+  if not source then return false end
+
+  -- Verifica via QBCore/QBox
+  if exports and exports.qbx_core then
+    local Player = exports.qbx_core:GetPlayer(source)
+    if Player and Player.PlayerData then
+      local group = Player.PlayerData.group or 'user'
+      return group == 'admin' or group == 'god'
+    end
+  end
+
+  -- Fallback para QB-Core
+  if exports and exports['qb-core'] then
+    local QBCore = exports['qb-core']:GetCoreObject()
+    if QBCore then
+      local Player = QBCore.Functions.GetPlayer(source)
+      if Player and Player.PlayerData then
+        local permissions = Player.PlayerData.permission or Player.PlayerData.group or 'user'
+        return permissions == 'admin' or permissions == 'god'
+      end
+    end
+  end
+
+  return false
+end
+
+--============================================================
 -- Exports para desenvolvedores
 --============================================================
+
+-- Retorna o objeto core do Space Economy (NOVO)
+exports('GetCoreObject', function()
+  return SE
+end)
 
 -- Retorna o multiplicador atual de inflação (ex: 1.05)
 exports('GetInflationMultiplier', function()
