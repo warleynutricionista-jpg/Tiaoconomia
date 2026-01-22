@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Administrativo - Space Economy</title>
+  <link rel="stylesheet" href="staff.css">
+</head>
+<body>
+  <div class="overlay" id="staff-overlay">
+    <!-- =====================================================
+         PAINEL ADMINISTRATIVO - Interface Completa
+    ===================================================== -->
+    <section class="admin-panel" id="staff-panel">
+      <!-- Header -->
+      <header class="panel-header">
+        <div class="header-content">
+          <div class="header-title">
+            <span class="header-icon">⚙️</span>
+            <div>
+              <h1>Painel Administrativo</h1>
+              <p class="subtitle">Gestão Completa da Economia</p>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn-icon" onclick="refreshAdminData()" title="Atualizar">
+              <span>🔄</span>
+            </button>
+            <button class="btn-icon" onclick="closeStaffPanel()" title="Fechar">
+              <span>✖</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <nav class="tab-navigation">
+        <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">
+          <span class="tab-icon">📊</span>
+          <span>Visão Geral</span>
+        </button>
+        <button class="tab-btn" data-tab="economy" onclick="switchTab('economy')">
+          <span class="tab-icon">💹</span>
+          <span>Economia</span>
+        </button>
+        <button class="tab-btn" data-tab="organizations" onclick="switchTab('organizations')">
+          <span class="tab-icon">🏢</span>
+          <span>Organizações</span>
+        </button>
+        <button class="tab-btn" data-tab="stock-market" onclick="switchTab('stock-market')">
+          <span class="tab-icon">📈</span>
+          <span>Bolsa de Valores</span>
+        </button>
+        <button class="tab-btn" data-tab="events" onclick="switchTab('events')">
+          <span class="tab-icon">⚡</span>
+          <span>Eventos Econômicos</span>
+        </button>
+        <button class="tab-btn" data-tab="policies" onclick="switchTab('policies')">
+          <span class="tab-icon">📜</span>
+          <span>Políticas</span>
+        </button>
+        <button class="tab-btn" data-tab="cache" onclick="switchTab('cache')">
+          <span class="tab-icon">💾</span>
+          <span>Cache/Sistema</span>
+        </button>
+      </nav>
+
+      <!-- Content Area -->
+      <div class="panel-content">
+        <!-- TAB: VISÃO GERAL -->
+        <div class="tab-content active" data-tab="overview">
+          <div class="dashboard-grid">
+            <!-- Key Metrics -->
+            <div class="metric-card large">
+              <div class="metric-header">
+                <span class="metric-icon">💰</span>
+                <h3>Tesouro Público</h3>
+              </div>
+              <div class="metric-value money" id="treasury-balance">$0</div>
+              <div class="metric-actions">
+                <button class="btn btn-sm btn-secondary" onclick="depositTreasury()">Depositar</button>
+                <button class="btn btn-sm btn-secondary" onclick="withdrawTreasury()">Sacar</button>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-icon">📈</span>
+                <h3>PIB</h3>
+              </div>
+              <div class="metric-value money" id="pib-value">$0</div>
+              <div class="metric-subtitle" id="pib-per-capita">Per capita: $0</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-icon">💸</span>
+                <h3>Circulação Monetária</h3>
+              </div>
+              <div class="metric-value money" id="money-circulation">$0</div>
+              <div class="metric-subtitle" id="velocity">Velocidade: 0x</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-icon">📊</span>
+                <h3>Taxa SELIC</h3>
+              </div>
+              <div class="metric-value" id="selic-rate">0%</div>
+              <div class="metric-subtitle" id="inflation">Inflação: 0%</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-icon">👥</span>
+                <h3>Taxa de Desemprego</h3>
+              </div>
+              <div class="metric-value" id="unemployment-rate">0%</div>
+              <div class="metric-subtitle" id="min-wage">Salário mín: $0</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-icon">🏢</span>
+                <h3>Organizações</h3>
+              </div>
+              <div class="metric-value" id="total-orgs">0</div>
+              <div class="metric-subtitle" id="active-orgs">Ativas: 0</div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="section-header mt-4">
+            <h2>Ações Rápidas</h2>
+          </div>
+          <div class="quick-actions-grid">
+            <button class="action-card" onclick="forceWageAdjustment()">
+              <span class="action-icon">💼</span>
+              <span class="action-label">Ajustar Salário Mínimo</span>
+            </button>
+            <button class="action-card" onclick="triggerCOPOM()">
+              <span class="action-icon">🏦</span>
+              <span class="action-label">Reunião COPOM</span>
+            </button>
+            <button class="action-card" onclick="generateReport()">
+              <span class="action-icon">📄</span>
+              <span class="action-label">Gerar Relatório</span>
+            </button>
+            <button class="action-card" onclick="openEventManager()">
+              <span class="action-icon">⚡</span>
+              <span class="action-label">Disparar Evento</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB: ECONOMIA -->
+        <div class="tab-content" data-tab="economy">
+          <div class="section-header">
+            <h2>Gestão Econômica</h2>
+          </div>
+
+          <!-- Mercado de Trabalho -->
+          <div class="panel-section">
+            <h3>Mercado de Trabalho</h3>
+            <div class="form-container">
+              <button class="btn btn-primary" onclick="showLaborMarketReport()">
+                Ver Relatório Completo
+              </button>
+              <button class="btn btn-secondary" onclick="forceWageAdjustment()">
+                Forçar Ajuste de Salário
+              </button>
+            </div>
+            <div id="labor-market-data" class="data-display">
+              <!-- Labor market data will be loaded here -->
+            </div>
+          </div>
+
+          <!-- Política Monetária -->
+          <div class="panel-section mt-4">
+            <h3>Política Monetária (COPOM)</h3>
+            <div class="copom-controls">
+              <div class="stats-row">
+                <div class="stat-item">
+                  <label>SELIC Atual</label>
+                  <span class="stat-value" id="copom-selic">0%</span>
+                </div>
+                <div class="stat-item">
+                  <label>Meta de Inflação</label>
+                  <span class="stat-value" id="copom-target">4.5%</span>
+                </div>
+                <div class="stat-item">
+                  <label>Inflação Atual</label>
+                  <span class="stat-value" id="copom-inflation">0%</span>
+                </div>
+              </div>
+              <div class="button-row mt-3">
+                <button class="btn btn-danger" onclick="adjustSELIC('raise')">
+                  Aumentar SELIC (+0.25%)
+                </button>
+                <button class="btn btn-secondary" onclick="adjustSELIC('hold')">
+                  Manter Taxa
+                </button>
+                <button class="btn btn-success" onclick="adjustSELIC('lower')">
+                  Reduzir SELIC (-0.25%)
+                </button>
+              </div>
+              <button class="btn btn-primary mt-3" onclick="forceCOPOM()">
+                Forçar Reunião COPOM
+              </button>
+            </div>
+          </div>
+
+          <!-- IPC (Índice de Preços ao Consumidor) -->
+          <div class="panel-section mt-4">
+            <h3>IPC - Índice de Preços ao Consumidor</h3>
+            <div class="ipc-grid">
+              <div class="ipc-category">
+                <label>Alimentação</label>
+                <div class="ipc-controls">
+                  <input type="number" id="ipc-alimentacao" class="form-input" step="0.1" placeholder="±%">
+                  <button class="btn btn-sm" onclick="adjustIPC('alimentacao')">Ajustar</button>
+                </div>
+              </div>
+              <div class="ipc-category">
+                <label>Transporte</label>
+                <div class="ipc-controls">
+                  <input type="number" id="ipc-transporte" class="form-input" step="0.1" placeholder="±%">
+                  <button class="btn btn-sm" onclick="adjustIPC('transporte')">Ajustar</button>
+                </div>
+              </div>
+              <div class="ipc-category">
+                <label>Habitação</label>
+                <div class="ipc-controls">
+                  <input type="number" id="ipc-habitacao" class="form-input" step="0.1" placeholder="±%">
+                  <button class="btn btn-sm" onclick="adjustIPC('habitacao')">Ajustar</button>
+                </div>
+              </div>
+              <div class="ipc-category">
+                <label>Saúde</label>
+                <div class="ipc-controls">
+                  <input type="number" id="ipc-saude" class="form-input" step="0.1" placeholder="±%">
+                  <button class="btn btn-sm" onclick="adjustIPC('saude')">Ajustar</button>
+                </div>
+              </div>
+              <div class="ipc-category">
+                <label>Lazer</label>
+                <div class="ipc-controls">
+                  <input type="number" id="ipc-lazer" class="form-input" step="0.1" placeholder="±%">
+                  <button class="btn btn-sm" onclick="adjustIPC('lazer')">Ajustar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: ORGANIZAÇÕES -->
+        <div class="tab-content" data-tab="organizations">
+          <div class="section-header">
+            <h2>Gestão de Organizações</h2>
+            <button class="btn btn-primary" onclick="createOrgAdmin()">
+              <span>➕</span> Criar Organização
+            </button>
+          </div>
+
+          <!-- Filtros -->
+          <div class="filters-row">
+            <input type="text" id="org-search" class="form-input" placeholder="Buscar por nome ou tag...">
+            <select id="org-filter" class="form-select">
+              <option value="all">Todas</option>
+              <option value="active">Ativas</option>
+              <option value="listed">Listadas na Bolsa</option>
+            </select>
+            <button class="btn btn-secondary" onclick="refreshOrganizations()">Buscar</button>
+          </div>
+
+          <!-- Lista de Organizações -->
+          <div class="table-container mt-3" id="organizations-table">
+            <p class="empty-state">Nenhuma organização encontrada</p>
+          </div>
+        </div>
+
+        <!-- TAB: BOLSA DE VALORES -->
+        <div class="tab-content" data-tab="stock-market">
+          <div class="section-header">
+            <h2>Gestão da Bolsa de Valores</h2>
+          </div>
+
+          <!-- Empresas Listadas -->
+          <div class="panel-section">
+            <div class="section-header">
+              <h3>Empresas Listadas</h3>
+              <button class="btn btn-primary" onclick="listCompanyOnStock()">
+                <span>➕</span> Listar Empresa
+              </button>
+            </div>
+            <div class="table-container" id="listed-companies-table">
+              <p class="empty-state">Nenhuma empresa listada</p>
+            </div>
+          </div>
+
+          <!-- Índices da Bolsa -->
+          <div class="panel-section mt-4">
+            <h3>Índices e Estatísticas</h3>
+            <div class="stats-grid">
+              <div class="stat-item">
+                <label>Índice Geral</label>
+                <span class="stat-value" id="stock-index">1000</span>
+              </div>
+              <div class="stat-item">
+                <label>Volume Total</label>
+                <span class="stat-value money" id="stock-volume">$0</span>
+              </div>
+              <div class="stat-item">
+                <label>Empresas Listadas</label>
+                <span class="stat-value" id="stock-companies">0</span>
+              </div>
+              <div class="stat-item">
+                <label>Transações Hoje</label>
+                <span class="stat-value" id="stock-transactions">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ajuste Manual de Cotações -->
+          <div class="panel-section mt-4">
+            <h3>Ajuste Manual de Cotação</h3>
+            <div class="form-container">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Empresa</label>
+                  <select id="stock-company-select" class="form-select">
+                    <option value="">Selecione...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Novo Valor (%)</label>
+                  <input type="number" id="stock-adjustment" class="form-input" step="0.1" placeholder="±%">
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="adjustStockPrice()">Ajustar Cotação</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: EVENTOS ECONÔMICOS -->
+        <div class="tab-content" data-tab="events">
+          <div class="section-header">
+            <h2>Eventos Econômicos</h2>
+          </div>
+
+          <!-- Evento Ativo -->
+          <div class="panel-section">
+            <h3>Evento Ativo</h3>
+            <div id="active-event-display" class="event-display">
+              <p class="empty-state">Nenhum evento ativo no momento</p>
+            </div>
+          </div>
+
+          <!-- Disparar Novo Evento -->
+          <div class="panel-section mt-4">
+            <h3>Disparar Novo Evento</h3>
+            <div class="form-container">
+              <div class="form-group">
+                <label>Selecionar Evento</label>
+                <select id="event-select" class="form-select">
+                  <option value="">Selecione um evento...</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="triggerEvent()">Disparar Evento</button>
+            </div>
+          </div>
+
+          <!-- Definir Desfecho -->
+          <div class="panel-section mt-4">
+            <h3>Definir Desfecho do Evento Ativo</h3>
+            <div class="form-container">
+              <div class="form-group">
+                <label>Desfecho</label>
+                <select id="outcome-select" class="form-select">
+                  <option value="auto">Automático</option>
+                  <option value="positive">Positivo</option>
+                  <option value="negative">Negativo</option>
+                  <option value="neutral">Neutro</option>
+                </select>
+              </div>
+              <button class="btn btn-secondary" onclick="setEventOutcome()">Definir Desfecho</button>
+            </div>
+          </div>
+
+          <!-- Histórico -->
+          <div class="panel-section mt-4">
+            <div class="section-header">
+              <h3>Histórico de Eventos</h3>
+              <button class="btn btn-secondary" onclick="loadEventHistory()">Atualizar</button>
+            </div>
+            <div class="table-container" id="events-history-table">
+              <p class="empty-state">Carregando histórico...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: POLÍTICAS -->
+        <div class="tab-content" data-tab="policies">
+          <div class="section-header">
+            <h2>Políticas e Configurações</h2>
+          </div>
+
+          <!-- Relatórios -->
+          <div class="panel-section">
+            <h3>Relatórios</h3>
+            <div class="button-row">
+              <button class="btn btn-primary" onclick="getEconomyReport()">Relatório Econômico Completo</button>
+              <button class="btn btn-secondary" onclick="getPoliticalReport()">Relatório de Política Monetária</button>
+              <button class="btn btn-secondary" onclick="getLaborReport()">Relatório do Mercado de Trabalho</button>
+            </div>
+          </div>
+
+          <!-- Taxação Automática -->
+          <div class="panel-section mt-4">
+            <h3>Configurações de Taxação</h3>
+            <div class="info-box">
+              <p>Configure as taxas automáticas aplicadas em diferentes operações do servidor.</p>
+            </div>
+            <!-- Tax configuration form would go here -->
+          </div>
+        </div>
+
+        <!-- TAB: CACHE/SISTEMA -->
+        <div class="tab-content" data-tab="cache">
+          <div class="section-header">
+            <h2>Cache e Sistema</h2>
+          </div>
+
+          <!-- Cache Statistics -->
+          <div class="panel-section">
+            <h3>Estatísticas do Cache</h3>
+            <div id="cache-stats-display" class="stats-display">
+              <p class="empty-state">Carregando estatísticas...</p>
+            </div>
+            <div class="button-row mt-3">
+              <button class="btn btn-primary" onclick="refreshCacheStats()">Atualizar</button>
+              <button class="btn btn-secondary" onclick="warmupCache()">Forçar Pre-aquecimento</button>
+              <button class="btn btn-danger" onclick="clearCache()">Limpar Cache</button>
+            </div>
+          </div>
+
+          <!-- System Logs -->
+          <div class="panel-section mt-4">
+            <div class="section-header">
+              <h3>Logs do Sistema</h3>
+              <button class="btn btn-secondary" onclick="refreshLogs()">Atualizar</button>
+            </div>
+            <div class="table-container" id="system-logs-table">
+              <p class="empty-state">Carregando logs...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="modal-overlay hidden" onclick="closeModal(event)">
+      <div class="modal-dialog" onclick="event.stopPropagation()">
+        <div id="modal-content">
+          <!-- Dynamic modal content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="staff.js"></script>
+</body>
+</html>

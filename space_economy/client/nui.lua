@@ -205,3 +205,154 @@ RegisterNetEvent('space_economy:client_loanApproved', function(loanId, simulatio
     simulation = simulation
   })
 end)
+
+--============================================================
+-- NEW PLAYER PANEL
+--============================================================
+RegisterNetEvent('space_economy:client_open_player', function()
+  SetNuiFocus(true, true)
+  SendNUIMessage({
+    action = 'openPlayerPanel'
+  })
+end)
+
+RegisterNUICallback('closePlayerPanel', function(_, cb)
+  SetNuiFocus(false, false)
+  cb({ ok = true })
+end)
+
+-- Player panel data requests
+RegisterNUICallback('getFinancialData', function(_, cb)
+  TriggerServerCallback('space_economy:getFinancialData', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getMyOrganizations', function(_, cb)
+  TriggerServerCallback('space_economy:getMyOrganizations', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getStockQuotes', function(_, cb)
+  TriggerServerCallback('space_economy:getStockQuotes', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getMyPortfolio', function(_, cb)
+  TriggerServerCallback('space_economy:getMyPortfolio', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getBankingProducts', function(_, cb)
+  TriggerServerCallback('space_economy:getBankingProducts', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getMyInvestments', function(_, cb)
+  TriggerServerCallback('space_economy:getMyInvestments', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getMyShops', function(_, cb)
+  TriggerServerCallback('space_economy:getMyShops', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('createOrganization', function(data, cb)
+  TriggerServerEvent('space_economy:server_createOrg', data.name, data.tag)
+  cb({ success = true })
+end)
+
+RegisterNUICallback('buyStock', function(data, cb)
+  TriggerServerEvent('space_economy:server_buyStock', data.symbol, data.quantity)
+  cb({ success = true })
+end)
+
+RegisterNUICallback('sellStock', function(data, cb)
+  TriggerServerEvent('space_economy:server_sellStock', data.symbol, data.quantity)
+  cb({ success = true })
+end)
+
+RegisterNUICallback('invest', function(data, cb)
+  TriggerServerEvent('space_economy:server_invest', data.productId, data.amount)
+  cb({ success = true })
+end)
+
+RegisterNUICallback('redeemInvestment', function(data, cb)
+  TriggerServerEvent('space_economy:server_redeemInvestment', data.investmentId)
+  cb({ success = true })
+end)
+
+RegisterNUICallback('createShop', function(data, cb)
+  TriggerServerEvent('space_economy:server_createShop', data.name)
+  cb({ success = true })
+end)
+
+--============================================================
+-- NEW STAFF PANEL
+--============================================================
+RegisterNetEvent('space_economy:client_open_staff', function()
+  SetNuiFocus(true, true)
+  SendNUIMessage({
+    action = 'openStaffPanel'
+  })
+end)
+
+RegisterNUICallback('closeStaffPanel', function(_, cb)
+  SetNuiFocus(false, false)
+  cb({ ok = true })
+end)
+
+-- Staff panel data requests
+RegisterNUICallback('getEconomyOverview', function(_, cb)
+  TriggerServerCallback('space_economy:getEconomyOverview', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getEconomyData', function(_, cb)
+  TriggerServerCallback('space_economy:getEconomyData', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getAllOrganizations', function(_, cb)
+  TriggerServerCallback('space_economy:getAllOrganizations', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getStockMarketAdmin', function(_, cb)
+  TriggerServerCallback('space_economy:getStockMarketAdmin', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getActiveEvent', function(_, cb)
+  TriggerServerCallback('space_economy:getActiveEvent', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getEventHistory', function(_, cb)
+  TriggerServerCallback('space_economy:getEventHistory', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+RegisterNUICallback('getCacheStats', function(_, cb)
+  TriggerServerCallback('space_economy:getCacheStats', function(data)
+    cb({ success = true, data = data })
+  end)
+end)
+
+-- Helper function for callbacks (if not already present)
+function TriggerServerCallback(name, cb, ...)
+  lib.callback(name, false, cb, ...)
+end
