@@ -1,0 +1,367 @@
+/**
+ * Space Economy - Staff Panel Styles
+ * Administrative interface with professional design
+ */
+
+/* Import base player styles and extend */
+@import url('player.css');
+
+/* ===== ADMIN SPECIFIC OVERRIDES ===== */
+:root {
+  --admin-primary: #8b5cf6;
+  --admin-primary-hover: #7c3aed;
+  --admin-accent: #ec4899;
+}
+
+.admin-panel {
+  width: min(98vw, 1600px);
+  max-height: 95vh;
+}
+
+/* ===== DASHBOARD GRID ===== */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.metric-card {
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  transition: var(--transition);
+}
+
+.metric-card:hover {
+  border-color: var(--admin-primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+}
+
+.metric-card.large {
+  grid-column: span 2;
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.metric-header h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-icon {
+  font-size: 1.5rem;
+}
+
+.metric-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.metric-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.metric-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+}
+
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+}
+
+/* ===== QUICK ACTIONS GRID ===== */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.action-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.action-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--admin-primary);
+  transform: translateY(-4px);
+}
+
+.action-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 4px 8px rgba(139, 92, 246, 0.3));
+}
+
+.action-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ===== PANEL SECTIONS ===== */
+.panel-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.panel-section h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+/* ===== FILTERS ROW ===== */
+.filters-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.filters-row .form-input,
+.filters-row .form-select {
+  flex: 1;
+}
+
+/* ===== COPOM CONTROLS ===== */
+.copom-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-dark);
+  border-radius: 8px;
+}
+
+.stats-row .stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.stats-row label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-row .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.button-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* ===== IPC GRID ===== */
+.ipc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.ipc-category {
+  background: var(--bg-dark);
+  padding: var(--spacing-md);
+  border-radius: 8px;
+}
+
+.ipc-category label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.ipc-controls {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.ipc-controls .form-input {
+  flex: 1;
+}
+
+.ipc-controls .btn {
+  white-space: nowrap;
+}
+
+/* ===== EVENT DISPLAY ===== */
+.event-display {
+  background: var(--bg-dark);
+  border-left: 4px solid var(--warning);
+  padding: var(--spacing-md);
+  border-radius: 4px;
+}
+
+.event-display h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.event-display p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.event-display .event-meta {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ===== STATS DISPLAY ===== */
+.stats-display {
+  background: var(--bg-dark);
+  padding: var(--spacing-md);
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+}
+
+.stats-display pre {
+  color: var(--text-primary);
+  overflow-x: auto;
+}
+
+/* ===== DATA DISPLAY ===== */
+.data-display {
+  background: var(--bg-dark);
+  padding: var(--spacing-md);
+  border-radius: 8px;
+  margin-top: var(--spacing-md);
+}
+
+/* ===== BADGES & STATUS ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.badge-info {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--info);
+}
+
+/* ===== ADMIN TAB BUTTONS - Custom colors ===== */
+.admin-panel .tab-btn.active {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+}
+
+.admin-panel .tab-btn:hover {
+  border-color: var(--admin-primary);
+}
+
+/* ===== ADMIN BUTTONS - Primary uses purple ===== */
+.admin-panel .btn-primary {
+  background: var(--admin-primary);
+}
+
+.admin-panel .btn-primary:hover {
+  background: var(--admin-primary-hover);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* ===== RESPONSIVE ADMIN ===== */
+@media (max-width: 1024px) {
+  .admin-panel {
+    width: 100vw;
+    max-height: 100vh;
+  }
+
+  .metric-card.large {
+    grid-column: span 1;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-panel {
+    border-radius: 0;
+  }
+
+  .button-row {
+    flex-direction: column;
+  }
+
+  .button-row .btn {
+    width: 100%;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ipc-grid {
+    grid-template-columns: 1fr;
+  }
+}

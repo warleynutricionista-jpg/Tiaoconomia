@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel do Jogador - Space Economy</title>
+  <link rel="stylesheet" href="player.css">
+</head>
+<body>
+  <div class="overlay" id="player-overlay">
+    <!-- =====================================================
+         PAINEL DO JOGADOR - Interface Completa
+    ===================================================== -->
+    <section class="main-panel" id="player-panel">
+      <!-- Header -->
+      <header class="panel-header">
+        <div class="header-content">
+          <div class="header-title">
+            <span class="header-icon">👤</span>
+            <div>
+              <h1>Painel do Jogador</h1>
+              <p class="subtitle">Gerencie suas finanças e negócios</p>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn-icon" onclick="refreshPlayerData()" title="Atualizar">
+              <span>🔄</span>
+            </button>
+            <button class="btn-icon" onclick="closePlayerPanel()" title="Fechar">
+              <span>✖</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <nav class="tab-navigation">
+        <button class="tab-btn active" data-tab="financial" onclick="switchTab('financial')">
+          <span class="tab-icon">💰</span>
+          <span>Financeiro</span>
+        </button>
+        <button class="tab-btn" data-tab="business" onclick="switchTab('business')">
+          <span class="tab-icon">🏢</span>
+          <span>Negócios</span>
+        </button>
+        <button class="tab-btn" data-tab="stock" onclick="switchTab('stock')">
+          <span class="tab-icon">📈</span>
+          <span>Bolsa de Valores</span>
+        </button>
+        <button class="tab-btn" data-tab="banking" onclick="switchTab('banking')">
+          <span class="tab-icon">🏦</span>
+          <span>Produtos Bancários</span>
+        </button>
+        <button class="tab-btn" data-tab="shop" onclick="switchTab('shop')">
+          <span class="tab-icon">🛒</span>
+          <span>Minhas Lojas</span>
+        </button>
+      </nav>
+
+      <!-- Content Area -->
+      <div class="panel-content">
+        <!-- TAB: FINANCEIRO -->
+        <div class="tab-content active" data-tab="financial">
+          <!-- Resumo Financeiro -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Score de Crédito</div>
+              <div class="stat-value" id="credit-score">750</div>
+              <div class="stat-change positive">+12 este mês</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Dívidas Totais</div>
+              <div class="stat-value money" id="total-debts">$0</div>
+              <div class="stat-change negative" id="debts-count">0 ativas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Parcelamentos</div>
+              <div class="stat-value" id="total-installments">0</div>
+              <div class="stat-change neutral" id="next-installment">Próx: --</div>
+            </div>
+          </div>
+
+          <!-- Seções Expansíveis -->
+          <div class="accordion">
+            <!-- Dívidas -->
+            <div class="accordion-item">
+              <button class="accordion-header" onclick="toggleAccordion(this)">
+                <span class="accordion-title">
+                  <span class="accordion-icon">💳</span>
+                  Minhas Dívidas
+                </span>
+                <span class="accordion-chevron">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="table-container" id="debts-table">
+                  <p class="empty-state">Nenhuma dívida encontrada</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Parcelamentos -->
+            <div class="accordion-item">
+              <button class="accordion-header" onclick="toggleAccordion(this)">
+                <span class="accordion-title">
+                  <span class="accordion-icon">📅</span>
+                  Parcelamentos Ativos
+                </span>
+                <span class="accordion-chevron">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="table-container" id="installments-table">
+                  <p class="empty-state">Nenhum parcelamento ativo</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Solicitar Empréstimo -->
+            <div class="accordion-item">
+              <button class="accordion-header" onclick="toggleAccordion(this)">
+                <span class="accordion-title">
+                  <span class="accordion-icon">💵</span>
+                  Solicitar Empréstimo
+                </span>
+                <span class="accordion-chevron">▼</span>
+              </button>
+              <div class="accordion-content">
+                <div class="form-container">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label>Valor do Empréstimo</label>
+                      <input type="number" id="loan-amount" class="form-input" placeholder="Ex: 50000">
+                    </div>
+                    <div class="form-group">
+                      <label>Número de Parcelas</label>
+                      <input type="number" id="loan-installments" class="form-input" value="12" min="1" max="60">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Finalidade (opcional)</label>
+                    <input type="text" id="loan-purpose" class="form-input" placeholder="Ex: Compra de veículo">
+                  </div>
+                  <div id="loan-simulation-result" class="info-box hidden">
+                    <!-- Simulation results will appear here -->
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="simulateLoan()">Simular</button>
+                    <button class="btn btn-primary" onclick="requestLoan()">Solicitar Empréstimo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: NEGÓCIOS -->
+        <div class="tab-content" data-tab="business">
+          <div class="section-header">
+            <h2>Minhas Organizações</h2>
+            <button class="btn btn-primary" onclick="createOrganization()">
+              <span>➕</span> Criar Organização
+            </button>
+          </div>
+
+          <div class="organizations-grid" id="organizations-list">
+            <p class="empty-state">Você não possui organizações. Crie uma para começar!</p>
+          </div>
+
+          <!-- Modal de detalhes da organização (aparece ao clicar em uma org) -->
+          <div id="org-detail" class="modal-content hidden">
+            <!-- Organization details will be loaded here -->
+          </div>
+        </div>
+
+        <!-- TAB: BOLSA DE VALORES -->
+        <div class="tab-content" data-tab="stock">
+          <div class="section-header">
+            <h2>Bolsa de Valores</h2>
+            <button class="btn btn-secondary" onclick="refreshStockQuotes()">
+              <span>🔄</span> Atualizar Cotações
+            </button>
+          </div>
+
+          <!-- Meu Portfólio -->
+          <div class="info-card">
+            <h3>Meu Portfólio</h3>
+            <div class="stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">Valor Investido</span>
+                <span class="stat-value money" id="portfolio-invested">$0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Valor Atual</span>
+                <span class="stat-value money" id="portfolio-current">$0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Lucro/Prejuízo</span>
+                <span class="stat-value money" id="portfolio-profit">$0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista de Ações Disponíveis -->
+          <div class="stocks-container" id="stocks-list">
+            <p class="empty-state">Carregando cotações...</p>
+          </div>
+
+          <!-- Minhas Ações -->
+          <div class="section-header mt-4">
+            <h3>Minhas Ações</h3>
+          </div>
+          <div class="table-container" id="my-stocks-table">
+            <p class="empty-state">Você não possui ações</p>
+          </div>
+        </div>
+
+        <!-- TAB: PRODUTOS BANCÁRIOS -->
+        <div class="tab-content" data-tab="banking">
+          <div class="section-header">
+            <h2>Produtos Bancários</h2>
+          </div>
+
+          <!-- Meus Investimentos -->
+          <div class="info-card">
+            <h3>Meus Investimentos</h3>
+            <div class="table-container" id="investments-table">
+              <p class="empty-state">Nenhum investimento ativo</p>
+            </div>
+          </div>
+
+          <!-- Produtos Disponíveis -->
+          <div class="section-header mt-4">
+            <h3>Produtos Disponíveis</h3>
+          </div>
+          <div class="products-grid" id="banking-products">
+            <!-- Banking products cards will be loaded here -->
+          </div>
+        </div>
+
+        <!-- TAB: MINHAS LOJAS -->
+        <div class="tab-content" data-tab="shop">
+          <div class="section-header">
+            <h2>Minhas Lojas</h2>
+            <button class="btn btn-primary" onclick="createShop()">
+              <span>➕</span> Criar Loja
+            </button>
+          </div>
+
+          <div class="shops-grid" id="shops-list">
+            <p class="empty-state">Você não possui lojas. Crie uma para vender seus produtos!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal Container (for popups) -->
+    <div id="modal-container" class="modal-overlay hidden" onclick="closeModal(event)">
+      <div class="modal-dialog" onclick="event.stopPropagation()">
+        <div id="modal-content">
+          <!-- Dynamic modal content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="player.js"></script>
+</body>
+</html>

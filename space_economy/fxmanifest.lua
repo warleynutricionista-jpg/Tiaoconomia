@@ -2,9 +2,9 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'space_economy (QBOX Advanced v4.0)'
-description 'Sistema econômico ultra-realista: PIB, SELIC, Bolsa de Valores, Banking, Mercado de Trabalho, Eventos Econômicos + v3.1'
-version '4.0.0'
+author 'space_economy (QBOX Advanced v5.0)'
+description 'Sistema econômico ultra-realista: PIB, SELIC, Bolsa de Valores, Banking, Mercado de Trabalho, Eventos Econômicos + Painéis Modernos para Player e Staff'
+version '5.0.0'
 
 -- ============================================================
 -- SHARED (Client + Server)
@@ -68,6 +68,7 @@ server_scripts {
   'server/labor_market.lua',     -- Salário mínimo, desemprego
   'server/hooks.lua',            -- Hooks universais de transação
   'server/organizations.lua',    -- Organizações/empresas de players
+  'server/shops.lua',            -- Sistema de lojas de players
 
   -- Sistema de Integração Centralizada v4.1 (NOVO)
   'server/service_registry.lua',        -- Registro central de serviços
@@ -78,6 +79,9 @@ server_scripts {
   -- Admin & Events
   'server/admin.lua',
   'server/events.lua',
+
+  -- New Panels System (v5.0)
+  'server/new_panels.lua',  -- Player & Staff panel backends
 }
 
 -- ============================================================
@@ -99,6 +103,14 @@ files {
   'html/index.html',
   'html/style.css',
   'html/script.js',
+
+  -- New Player & Staff Panels
+  'html/player.html',
+  'html/player.css',
+  'html/player.js',
+  'html/staff.html',
+  'html/staff.css',
+  'html/staff.js',
 }
 
 -- ============================================================
@@ -299,6 +311,16 @@ exports {
   'AddOrganizationProduct',
   'BuyOrganizationProduct',
   'GetOrganizationBalance',
+}
+
+-- Shops (v5.0)
+exports {
+  'CreateShop',
+  'GetPlayerShops',
+  'GetShop',
+  'AddProduct',
+  'GetProducts',
+  'BuyProduct',
 }
 
 -- Service Registry (v4.1)

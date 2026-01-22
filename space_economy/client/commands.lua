@@ -34,14 +34,26 @@ local function getKeybind(keyName, fallback)
   return fallback
 end
 
--- /taxas
+-- /taxas (old)
 RegisterCommand('taxas', function()
   openTax()
 end, false)
 
--- /economia (admin)
+-- /economia (old admin)
 RegisterCommand('economia', function()
   openAdmin()
+end, false)
+
+-- /player (NEW - Player Panel)
+RegisterCommand('player', function()
+  n('Abrindo painel do jogador...', 'inform')
+  TriggerEvent('space_economy:client_open_player')
+end, false)
+
+-- /admin (NEW - Staff Panel)
+RegisterCommand('admin', function()
+  n('Solicitando painel administrativo...', 'inform')
+  TriggerServerEvent('space_economy:server_openStaffPanel')
 end, false)
 
 -- /eco_testui (diagnóstico)
