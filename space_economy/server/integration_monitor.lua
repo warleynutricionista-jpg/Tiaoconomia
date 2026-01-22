@@ -31,6 +31,11 @@ RegisterCommand('se:overview', function(source, args, raw)
         return
     end
 
+    if not SE.ServiceRegistry then
+        print('^1Erro: ServiceRegistry não inicializado^7')
+        return
+    end
+
     local stats = SE.ServiceRegistry.GetStats()
     local pricing = SE.DynamicPricing.GenerateReport()
     local intercept = SE.TransactionInterceptor.Statistics
@@ -72,6 +77,11 @@ RegisterCommand('se:integrate', function(source, args, raw)
         return
     end
 
+    if not SE.ServiceRegistry then
+        print('^1Erro: ServiceRegistry não inicializado^7')
+        return
+    end
+
     local resourceName = args[1]
     local unregistered = SE.ServiceRegistry.GetUnregisteredServices()
 
@@ -110,6 +120,11 @@ RegisterCommand('se:ignore', function(source, args, raw)
 
     if #args < 1 then
         print('^1Uso: se:ignore <resource_name>^7')
+        return
+    end
+
+    if not SE.ServiceRegistry then
+        print('^1Erro: ServiceRegistry não inicializado^7')
         return
     end
 
@@ -186,6 +201,10 @@ function IM.CollectMonitoringData()
         -- Configurações
         config = {}
     }
+
+    if not SE.ServiceRegistry then
+        return data
+    end
 
     -- Serviços registrados
     local services = SE.ServiceRegistry.GetAllServices()
@@ -418,6 +437,10 @@ function IM.CheckAlerts()
     local alerts = {}
 
     -- Verifica serviços não registrados com alto volume
+    if not SE.ServiceRegistry then
+        return alerts
+    end
+
     local unregistered = SE.ServiceRegistry.GetUnregisteredServices()
     for resource, detection in pairs(unregistered) do
         if detection.total_volume > 100000 then -- Mais de 100k

@@ -246,7 +246,7 @@ _G.exports = setmetatable({}, {
 ---@param eventName string
 ---@param transactionData table
 function TI.LogInterception(source, resource, eventName, transactionData)
-    local amount = transactionData.amount or 0
+    local amount = tonumber(transactionData.amount) or 0
 
     -- Estatísticas
     TI.Statistics.total_intercepted = TI.Statistics.total_intercepted + 1
