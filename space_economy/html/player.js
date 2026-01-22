@@ -73,6 +73,11 @@
       overlay.classList.remove('active');
     }
     postNUI('closePlayerPanel');
+
+    // Notify parent window to hide the iframe
+    if (window.parent !== window) {
+      window.parent.postMessage({ action: 'closeFromIframe', panelType: 'player' }, '*');
+    }
   }
 
   function switchTab(tabName) {

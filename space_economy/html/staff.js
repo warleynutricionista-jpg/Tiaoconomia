@@ -71,6 +71,11 @@
       overlay.classList.remove('active');
     }
     postNUI('closeStaffPanel');
+
+    // Notify parent window to hide the iframe
+    if (window.parent !== window) {
+      window.parent.postMessage({ action: 'closeFromIframe', panelType: 'staff' }, '*');
+    }
   }
 
   function switchTab(tabName) {
