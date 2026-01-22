@@ -34,15 +34,15 @@ local function getKeybind(keyName, fallback)
   return fallback
 end
 
--- /taxas (old)
-RegisterCommand('taxas', function()
-  openTax()
-end, false)
+-- /taxas (DESATIVADO v5.0 - usar /player)
+-- RegisterCommand('taxas', function()
+--   openTax()
+-- end, false)
 
--- /economia (old admin)
-RegisterCommand('economia', function()
-  openAdmin()
-end, false)
+-- /economia (DESATIVADO v5.0 - usar /admin)
+-- RegisterCommand('economia', function()
+--   openAdmin()
+-- end, false)
 
 -- /player (NEW - Player Panel)
 RegisterCommand('player', function()
@@ -62,16 +62,22 @@ RegisterCommand('eco_testui', function()
 end, false)
 
 -- Keymapping (evite F8 porque conflita com console do FiveM)
-RegisterKeyMapping('taxas', 'Economia: abrir painel de impostos', 'keyboard', getKeybind('OpenTax', 'F7'))
-RegisterKeyMapping('economia', 'Economia: abrir painel administrativo', 'keyboard', getKeybind('OpenAdmin', 'F12'))
+-- RegisterKeyMapping('taxas', 'Economia: abrir painel de impostos', 'keyboard', getKeybind('OpenTax', 'F7')) -- DESATIVADO v5.0
+-- RegisterKeyMapping('economia', 'Economia: abrir painel administrativo', 'keyboard', getKeybind('OpenAdmin', 'F12')) -- DESATIVADO v5.0
 RegisterKeyMapping('eco_testui', 'Economia: TESTE abrir NUI admin local', 'keyboard', '5')
+
+-- New v5.0 key mappings
+RegisterKeyMapping('player', 'Economia: abrir painel do jogador (v5.0)', 'keyboard', getKeybind('OpenPlayer', 'F7'))
+RegisterKeyMapping('admin', 'Economia: abrir painel administrativo (v5.0)', 'keyboard', getKeybind('OpenAdmin', 'F12'))
 
 CreateThread(function()
   Wait(1000)
   -- sugestões (se chat resource existir)
   pcall(function()
-    TriggerEvent('chat:addSuggestion', '/taxas', 'Abrir painel de impostos/pagamentos')
-    TriggerEvent('chat:addSuggestion', '/economia', 'Abrir painel administrativo (requer permissão)')
+    -- TriggerEvent('chat:addSuggestion', '/taxas', 'Abrir painel de impostos/pagamentos') -- DESATIVADO v5.0
+    -- TriggerEvent('chat:addSuggestion', '/economia', 'Abrir painel administrativo (requer permissão)') -- DESATIVADO v5.0
+    TriggerEvent('chat:addSuggestion', '/player', '[v5.0] Abrir painel do jogador (economia, negócios, bolsa, lojas)')
+    TriggerEvent('chat:addSuggestion', '/admin', '[v5.0] Abrir painel administrativo (requer permissão)')
     TriggerEvent('chat:addSuggestion', '/eco_testui', 'TESTE: abrir painel admin local (diagnóstico NUI)')
   end)
 end)

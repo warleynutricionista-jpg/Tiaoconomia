@@ -73,7 +73,7 @@ lib.callback.register('space_economy:getFinancialData', function(source)
   return data
 end)
 
--- Get player organizations
+-- Get player organizations (with cache)
 lib.callback.register('space_economy:getMyOrganizations', function(source)
   local src = source
   if not src or src == 0 then return {} end
@@ -83,6 +83,17 @@ lib.callback.register('space_economy:getMyOrganizations', function(source)
 
   if not MySQL then return {} end
 
+  -- Try cache first (30 seconds TTL)
+  local cacheKey = 'player_orgs:' .. citizenid
+  if SE.Cache and SE.Cache.Get then
+    local cached = SE.Cache.Get(cacheKey)
+    if cached then
+      dbg('Cache HIT for player orgs:', citizenid)
+      return cached
+    end
+  end
+
+  dbg('Cache MISS for player orgs:', citizenid)
   local orgs = MySQL.query.await([[
     SELECT o.*, COUNT(DISTINCT m.id) as members
     FROM space_economy_organizations o
@@ -93,15 +104,40 @@ lib.callback.register('space_economy:getMyOrganizations', function(source)
     GROUP BY o.id
   ]], { citizenid, citizenid })
 
-  return orgs or {}
+  local result = orgs or {}
+
+  -- Cache result
+  if SE.Cache and SE.Cache.Set then
+    SE.Cache.Set(cacheKey, result, 30) -- 30 seconds
+  end
+
+  return result
 end)
 
--- Get stock quotes
+-- Get stock quotes (with cache)
 lib.callback.register('space_economy:getStockQuotes', function(source)
-  if SE.StockMarket and SE.StockMarket.GetQuotes then
-    return SE.StockMarket.GetQuotes()
+  -- Try cache first (15 seconds TTL)
+  local cacheKey = 'stock_quotes'
+  if SE.Cache and SE.Cache.Get then
+    local cached = SE.Cache.Get(cacheKey)
+    if cached then
+      dbg('Cache HIT for stock quotes')
+      return cached
+    end
   end
-  return {}
+
+  dbg('Cache MISS for stock quotes')
+  local quotes = {}
+  if SE.StockMarket and SE.StockMarket.GetQuotes then
+    quotes = SE.StockMarket.GetQuotes()
+  end
+
+  -- Cache result
+  if SE.Cache and SE.Cache.Set then
+    SE.Cache.Set(cacheKey, quotes, 15) -- 15 seconds
+  end
+
+  return quotes
 end)
 
 -- Get player portfolio
@@ -119,12 +155,30 @@ lib.callback.register('space_economy:getMyPortfolio', function(source)
   return { invested = 0, current = 0, stocks = {} }
 end)
 
--- Get banking products
+-- Get banking products (with cache)
 lib.callback.register('space_economy:getBankingProducts', function(source)
-  if SE.BankingSystem and SE.BankingSystem.GetProducts then
-    return SE.BankingSystem.GetProducts()
+  -- Try cache first (5 minutes TTL - products rarely change)
+  local cacheKey = 'banking_products'
+  if SE.Cache and SE.Cache.Get then
+    local cached = SE.Cache.Get(cacheKey)
+    if cached then
+      dbg('Cache HIT for banking products')
+      return cached
+    end
   end
-  return {}
+
+  dbg('Cache MISS for banking products')
+  local products = {}
+  if SE.BankingSystem and SE.BankingSystem.GetProducts then
+    products = SE.BankingSystem.GetProducts()
+  end
+
+  -- Cache result
+  if SE.Cache and SE.Cache.Set then
+    SE.Cache.Set(cacheKey, products, 300) -- 5 minutes
+  end
+
+  return products
 end)
 
 -- Get player investments
@@ -174,8 +228,19 @@ RegisterNetEvent('space_economy:server_openStaffPanel', function()
   TriggerClientEvent('space_economy:client_open_staff', src)
 end)
 
--- Get economy overview
+-- Get economy overview (with cache)
 lib.callback.register('space_economy:getEconomyOverview', function(source)
+  -- Try cache first (30 seconds TTL)
+  local cacheKey = 'economy_overview'
+  if SE.Cache and SE.Cache.Get then
+    local cached = SE.Cache.Get(cacheKey)
+    if cached then
+      dbg('Cache HIT for economy overview')
+      return cached
+    end
+  end
+
+  dbg('Cache MISS for economy overview')
   local data = {
     treasury = 0,
     pib = 0,
@@ -238,6 +303,11 @@ lib.callback.register('space_economy:getEconomyOverview', function(source)
     data.activeOrgs = count or 0
   end
 
+  -- Cache result
+  if SE.Cache and SE.Cache.Set then
+    SE.Cache.Set(cacheKey, data, 30) -- 30 seconds
+  end
+
   return data
 end)
 
@@ -261,10 +331,21 @@ lib.callback.register('space_economy:getEconomyData', function(source)
   return data
 end)
 
--- Get all organizations
+-- Get all organizations (with cache)
 lib.callback.register('space_economy:getAllOrganizations', function(source)
   if not MySQL then return {} end
 
+  -- Try cache first (45 seconds TTL)
+  local cacheKey = 'all_organizations'
+  if SE.Cache and SE.Cache.Get then
+    local cached = SE.Cache.Get(cacheKey)
+    if cached then
+      dbg('Cache HIT for all organizations')
+      return cached
+    end
+  end
+
+  dbg('Cache MISS for all organizations')
   local orgs = MySQL.query.await([[
     SELECT o.*, COUNT(DISTINCT m.id) as members
     FROM space_economy_organizations o
@@ -273,7 +354,14 @@ lib.callback.register('space_economy:getAllOrganizations', function(source)
     ORDER BY o.id DESC
   ]])
 
-  return orgs or {}
+  local result = orgs or {}
+
+  -- Cache result
+  if SE.Cache and SE.Cache.Set then
+    SE.Cache.Set(cacheKey, result, 45) -- 45 seconds
+  end
+
+  return result
 end)
 
 -- Get stock market admin data
@@ -354,6 +442,11 @@ RegisterNetEvent('space_economy:server_buyStock', function(symbol, quantity)
     local ok, msg = SE.StockMarket.BuyStock(src, symbol, quantity)
     if ok then
       notify(src, 'success', 'Ações compradas com sucesso!')
+
+      -- Invalidate cache (v5.0 optimization)
+      if SE.Cache and SE.Cache.Invalidate then
+        SE.Cache.Invalidate('stock_quotes')
+      end
     else
       notify(src, 'error', msg or 'Erro ao comprar ações')
     end
@@ -370,6 +463,11 @@ RegisterNetEvent('space_economy:server_sellStock', function(symbol, quantity)
     local ok, msg = SE.StockMarket.SellStock(src, symbol, quantity)
     if ok then
       notify(src, 'success', 'Ações vendidas com sucesso!')
+
+      -- Invalidate cache (v5.0 optimization)
+      if SE.Cache and SE.Cache.Invalidate then
+        SE.Cache.Invalidate('stock_quotes')
+      end
     else
       notify(src, 'error', msg or 'Erro ao vender ações')
     end
@@ -442,6 +540,11 @@ RegisterNetEvent('space_economy:server_treasuryDeposit', function(amount)
   if SE.Treasury and SE.Treasury.Deposit then
     SE.Treasury.Deposit(amount, 'admin_deposit', { admin_src = src })
     notify(src, 'success', 'Depósito realizado')
+
+    -- Invalidate cache (v5.0 optimization)
+    if SE.Cache and SE.Cache.Invalidate then
+      SE.Cache.Invalidate('economy_overview')
+    end
   end
 end)
 
@@ -457,6 +560,11 @@ RegisterNetEvent('space_economy:server_treasuryWithdraw', function(amount)
   if SE.Treasury and SE.Treasury.Withdraw then
     SE.Treasury.Withdraw(amount, 'admin_withdraw', { admin_src = src })
     notify(src, 'success', 'Saque realizado')
+
+    -- Invalidate cache (v5.0 optimization)
+    if SE.Cache and SE.Cache.Invalidate then
+      SE.Cache.Invalidate('economy_overview')
+    end
   end
 end)
 
@@ -470,6 +578,11 @@ RegisterNetEvent('space_economy:server_forceWageAdjustment', function()
   if SE.LaborMarket and SE.LaborMarket.ForceWageAdjustment then
     SE.LaborMarket.ForceWageAdjustment()
     notify(src, 'success', 'Salário mínimo ajustado')
+
+    -- Invalidate cache (v5.0 optimization)
+    if SE.Cache and SE.Cache.Invalidate then
+      SE.Cache.Invalidate('economy_overview')
+    end
   end
 end)
 
@@ -483,6 +596,11 @@ RegisterNetEvent('space_economy:server_forceCOPOM', function()
   if SE.MonetaryPolicy and SE.MonetaryPolicy.ForceCOPOMMeeting then
     SE.MonetaryPolicy.ForceCOPOMMeeting()
     notify(src, 'success', 'Reunião COPOM executada')
+
+    -- Invalidate cache (v5.0 optimization)
+    if SE.Cache and SE.Cache.Invalidate then
+      SE.Cache.Invalidate('economy_overview')
+    end
   end
 end)
 
@@ -496,6 +614,11 @@ RegisterNetEvent('space_economy:server_adjustSELIC', function(action)
   if SE.MonetaryPolicy and SE.MonetaryPolicy.AdjustSELIC then
     SE.MonetaryPolicy.AdjustSELIC(action)
     notify(src, 'success', 'SELIC ajustada')
+
+    -- Invalidate cache (v5.0 optimization)
+    if SE.Cache and SE.Cache.Invalidate then
+      SE.Cache.Invalidate('economy_overview')
+    end
   end
 end)
 

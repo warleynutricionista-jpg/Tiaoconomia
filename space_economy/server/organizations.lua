@@ -259,6 +259,13 @@ function Org.CreateOrganization(src, name, tag, ownerCitizenId)
     { insertId, citizenid, 'owner' }
   )
 
+  -- Invalidate caches (v5.0 optimization)
+  if SE.Cache and SE.Cache.Invalidate then
+    SE.Cache.Invalidate('all_organizations') -- Staff panel
+    SE.Cache.Invalidate('player_orgs:' .. citizenid) -- Player panel
+    SE.Cache.Invalidate('economy_overview') -- Overview includes org count
+  end
+
   return true, insertId
 end
 
@@ -288,6 +295,13 @@ function Org.AddMember(orgId, citizenid, role)
   end)
 
   if not ok then return false, err or 'db_error' end
+
+  -- Invalidate caches (v5.0 optimization)
+  if SE.Cache and SE.Cache.Invalidate then
+    SE.Cache.Invalidate('all_organizations') -- Staff panel (member count changed)
+    SE.Cache.Invalidate('player_orgs:' .. citizenid) -- Player panel
+  end
+
   return true
 end
 
@@ -299,6 +313,13 @@ function Org.RemoveMember(orgId, citizenid)
     'DELETE FROM space_economy_org_members WHERE org_id = ? AND citizenid = ?',
     { orgId, citizenid }
   )
+
+  -- Invalidate caches (v5.0 optimization)
+  if SE.Cache and SE.Cache.Invalidate then
+    SE.Cache.Invalidate('all_organizations') -- Staff panel (member count changed)
+    SE.Cache.Invalidate('player_orgs:' .. citizenid) -- Player panel
+  end
+
   return true
 end
 

@@ -1714,6 +1714,52 @@
         break;
       }
 
+      case 'openPlayerPanel': {
+        log('Opening Player Panel (v5.0)...');
+        // Hide old panels
+        const overlay = $('.overlay');
+        if (overlay) overlay.setAttribute('aria-hidden', 'true');
+
+        // Show player panel iframe
+        const playerFrame = $('#player-panel-frame');
+        if (playerFrame) {
+          playerFrame.style.display = 'block';
+          // Send ready message to iframe
+          postNUI('ready', { ok: true });
+        }
+        break;
+      }
+
+      case 'openStaffPanel': {
+        log('Opening Staff Panel (v5.0)...');
+        // Hide old panels
+        const overlay = $('.overlay');
+        if (overlay) overlay.setAttribute('aria-hidden', 'true');
+
+        // Show staff panel iframe
+        const staffFrame = $('#staff-panel-frame');
+        if (staffFrame) {
+          staffFrame.style.display = 'block';
+          // Send ready message to iframe
+          postNUI('ready', { ok: true });
+        }
+        break;
+      }
+
+      case 'closePlayerPanel': {
+        log('Closing Player Panel...');
+        const playerFrame = $('#player-panel-frame');
+        if (playerFrame) playerFrame.style.display = 'none';
+        break;
+      }
+
+      case 'closeStaffPanel': {
+        log('Closing Staff Panel...');
+        const staffFrame = $('#staff-panel-frame');
+        if (staffFrame) staffFrame.style.display = 'none';
+        break;
+      }
+
       default:
         log('Unhandled action:', action);
     }
