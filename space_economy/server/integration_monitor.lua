@@ -450,21 +450,23 @@ function IM.CheckAlerts()
     end
 
     -- Verifica taxa de bloqueio alta
-    local stats = SE.TransactionInterceptor.Statistics
-    if stats.total_intercepted > 0 then
-        local blockRate = stats.blocked_count / stats.total_intercepted
-        if blockRate > 0.1 then -- Mais de 10% bloqueado
-            table.insert(alerts, {
-                type = 'high_block_rate',
-                severity = 'high',
-                rate = blockRate * 100,
-                message = string.format(
-                    'Taxa de bloqueio alta: %.1f%% (%d/%d)',
-                    blockRate * 100,
-                    stats.blocked_count,
-                    stats.total_intercepted
-                )
-            })
+    if SE.TransactionInterceptor and SE.TransactionInterceptor.Statistics then
+        local stats = SE.TransactionInterceptor.Statistics
+        if stats.total_intercepted > 0 then
+            local blockRate = stats.blocked_count / stats.total_intercepted
+            if blockRate > 0.1 then -- Mais de 10% bloqueado
+                table.insert(alerts, {
+                    type = 'high_block_rate',
+                    severity = 'high',
+                    rate = blockRate * 100,
+                    message = string.format(
+                        'Taxa de bloqueio alta: %.1f%% (%d/%d)',
+                        blockRate * 100,
+                        stats.blocked_count,
+                        stats.total_intercepted
+                    )
+                })
+            end
         end
     end
 
@@ -506,13 +508,21 @@ function IM.Initialize()
             local value = row.config_value
 
             if key == 'enforce_integration' then
-                SE.TransactionInterceptor.Config.block_unregistered = (value == 'true')
+                if SE.TransactionInterceptor and SE.TransactionInterceptor.Config then
+                    SE.TransactionInterceptor.Config.block_unregistered = (value == 'true')
+                end
             elseif key == 'auto_apply_taxes' then
-                SE.TransactionInterceptor.Config.auto_apply_taxes = (value == 'true')
+                if SE.TransactionInterceptor and SE.TransactionInterceptor.Config then
+                    SE.TransactionInterceptor.Config.auto_apply_taxes = (value == 'true')
+                end
             elseif key == 'alert_threshold' then
-                SE.TransactionInterceptor.Config.alert_threshold = tonumber(value)
+                if SE.TransactionInterceptor and SE.TransactionInterceptor.Config then
+                    SE.TransactionInterceptor.Config.alert_threshold = tonumber(value)
+                end
             elseif key == 'price_update_interval' then
-                SE.DynamicPricing.UpdateInterval = tonumber(value)
+                if SE.DynamicPricing then
+                    SE.DynamicPricing.UpdateInterval = tonumber(value)
+                end
             end
         end
 
