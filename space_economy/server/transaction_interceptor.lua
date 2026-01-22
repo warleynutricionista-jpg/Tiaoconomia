@@ -560,13 +560,13 @@ function TI.Initialize()
 end
 
 -- Exporta funções
-exports('EnableBlocking', function(enable)
+function EnableBlocking(enable)
     TI.Config.block_unregistered = enable
-end)
+end
 
-exports('GetStatistics', function()
+function GetStatistics()
     return TI.Statistics
-end)
+end
 
 -- Inicializa
 Citizen.CreateThread(function()

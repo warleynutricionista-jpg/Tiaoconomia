@@ -535,8 +535,89 @@ end, false)
 -- INICIALIZAÇÃO
 -- =====================================================
 
+-- Cria tabelas necessárias se não existirem
+local function EnsureTables()
+    -- Tabela de serviços registrados
+    MySQL.Sync.execute([[
+        CREATE TABLE IF NOT EXISTS `space_economy_services` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `service_name` VARCHAR(100) NOT NULL UNIQUE,
+            `service_type` VARCHAR(50) NOT NULL,
+            `description` TEXT,
+            `resource` VARCHAR(100) NOT NULL,
+            `status` VARCHAR(50) NOT NULL DEFAULT 'pending',
+            `integration_config` TEXT,
+            `pricing_config` TEXT,
+            `stats` TEXT,
+            `callbacks` TEXT,
+            `metadata` TEXT,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            INDEX `idx_service_name` (`service_name`),
+            INDEX `idx_service_type` (`service_type`),
+            INDEX `idx_status` (`status`),
+            INDEX `idx_resource` (`resource`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ]])
+
+    -- Tabela de preços dinâmicos
+    MySQL.Sync.execute([[
+        CREATE TABLE IF NOT EXISTS `space_economy_prices` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `item_id` VARCHAR(200) NOT NULL UNIQUE,
+            `base_price` DECIMAL(20, 2) NOT NULL,
+            `current_price` DECIMAL(20, 2) NOT NULL,
+            `category` VARCHAR(50) DEFAULT 'GENERAL',
+            `multiplier` DECIMAL(10, 4) DEFAULT 1.0000,
+            `last_update` INT NOT NULL,
+            `price_history` LONGTEXT,
+            `metadata` TEXT,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            INDEX `idx_item_id` (`item_id`),
+            INDEX `idx_category` (`category`),
+            INDEX `idx_last_update` (`last_update`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ]])
+
+    -- Tabela de configurações de balanceamento
+    MySQL.Sync.execute([[
+        CREATE TABLE IF NOT EXISTS `space_economy_balance_config` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `config_key` VARCHAR(100) NOT NULL UNIQUE,
+            `config_value` TEXT NOT NULL,
+            `config_type` VARCHAR(50) DEFAULT 'json',
+            `description` TEXT,
+            `modified_by` VARCHAR(50),
+            `modified_at` INT,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            INDEX `idx_config_key` (`config_key`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ]])
+
+    -- Insere configurações padrão se não existirem
+    MySQL.Sync.execute([[
+        INSERT IGNORE INTO `space_economy_balance_config` (`config_key`, `config_value`, `config_type`, `description`) VALUES
+        ('global_price_multiplier', '1.0', 'number', 'Multiplicador global manual de preços'),
+        ('auto_balance_enabled', 'true', 'boolean', 'Habilita balanceamento automático de preços'),
+        ('enforce_integration', 'false', 'boolean', 'Força integração bloqueando serviços não registrados'),
+        ('auto_apply_taxes', 'true', 'boolean', 'Aplica impostos automaticamente em transações interceptadas'),
+        ('alert_threshold', '10000', 'number', 'Valor mínimo para alertar admins sobre transações'),
+        ('price_update_interval', '300000', 'number', 'Intervalo de atualização de preços em ms (5 minutos padrão)')
+    ]])
+
+    print('^2[ServiceRegistry] Tabelas criadas/verificadas com sucesso!^7')
+end
+
 function SR.Initialize()
     print('^2[ServiceRegistry] Inicializando sistema de registro de serviços...^7')
+
+    -- Garante que as tabelas existam
+    EnsureTables()
 
     -- Carrega serviços do banco de dados
     SR.LoadServicesFromDB()
