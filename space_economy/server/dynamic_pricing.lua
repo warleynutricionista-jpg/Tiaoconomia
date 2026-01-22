@@ -286,50 +286,54 @@ function DP.UpdateAllPrices()
     end
 
     -- Busca preços de serviços registrados e atualiza
-    local services = SE.ServiceRegistry.GetAllServices()
-    for serviceName, service in pairs(services) do
-        if service.pricing and service.pricing.can_be_balanced then
-            -- Se o serviço tem callback para obter preços
-            if service.callbacks.get_prices then
-                local prices = service.callbacks.get_prices()
+    if SE.ServiceRegistry and SE.ServiceRegistry.GetAllServices then
+        local services = SE.ServiceRegistry.GetAllServices()
+        for serviceName, service in pairs(services) do
+            if service.pricing and service.pricing.can_be_balanced then
+                -- Se o serviço tem callback para obter preços
+                if service.callbacks.get_prices then
+                    local prices = service.callbacks.get_prices()
 
-                if prices then
-                    for itemId, itemPrice in pairs(prices) do
-                        if type(itemPrice) == 'table' then
-                            DP.UpdatePrice(
-                                serviceName .. ':' .. itemId,
-                                itemPrice.base or itemPrice.price,
-                                itemPrice.category or 'GENERAL',
-                                itemPrice
-                            )
-                        else
-                            DP.UpdatePrice(
-                                serviceName .. ':' .. itemId,
-                                itemPrice,
-                                'GENERAL',
-                                {}
-                            )
-                        end
-                        updatedCount = updatedCount + 1
-                    end
-                end
-
-                -- Se o serviço tem callback para definir preços, notifica
-                if service.callbacks.set_prices then
-                    local newPrices = {}
-                    for itemId, priceData in pairs(DP.PriceCache) do
-                        if itemId:match('^' .. serviceName .. ':') then
-                            local realItemId = itemId:gsub('^' .. serviceName .. ':', '')
-                            newPrices[realItemId] = priceData.current_price
+                    if prices then
+                        for itemId, itemPrice in pairs(prices) do
+                            if type(itemPrice) == 'table' then
+                                DP.UpdatePrice(
+                                    serviceName .. ':' .. itemId,
+                                    itemPrice.base or itemPrice.price,
+                                    itemPrice.category or 'GENERAL',
+                                    itemPrice
+                                )
+                            else
+                                DP.UpdatePrice(
+                                    serviceName .. ':' .. itemId,
+                                    itemPrice,
+                                    'GENERAL',
+                                    {}
+                                )
+                            end
+                            updatedCount = updatedCount + 1
                         end
                     end
 
-                    if next(newPrices) then
-                        service.callbacks.set_prices(newPrices)
+                    -- Se o serviço tem callback para definir preços, notifica
+                    if service.callbacks.set_prices then
+                        local newPrices = {}
+                        for itemId, priceData in pairs(DP.PriceCache) do
+                            if itemId:match('^' .. serviceName .. ':') then
+                                local realItemId = itemId:gsub('^' .. serviceName .. ':', '')
+                                newPrices[realItemId] = priceData.current_price
+                            end
+                        end
+
+                        if next(newPrices) then
+                            service.callbacks.set_prices(newPrices)
+                        end
                     end
                 end
             end
         end
+    else
+        print('^3[DynamicPricing] ServiceRegistry indisponível, pulando preços de serviços registrados.^7')
     end
 
     local elapsed = GetGameTimer() - startTime

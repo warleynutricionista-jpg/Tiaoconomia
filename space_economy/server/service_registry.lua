@@ -50,11 +50,12 @@ function SR.RegisterService(serviceName, serviceData)
         return false
     end
 
+    local resourceName = serviceData.resource or GetInvokingResource() or SE.Resource or GetCurrentResourceName() or 'unknown'
     local service = {
         name = serviceName,
         type = serviceData.type or SR.ServiceTypes.OTHER,
         description = serviceData.description or '',
-        resource = serviceData.resource or GetInvokingResource(),
+        resource = resourceName,
         status = serviceData.status or SR.IntegrationStatus.FULLY_INTEGRATED,
 
         -- Configurações de integração
