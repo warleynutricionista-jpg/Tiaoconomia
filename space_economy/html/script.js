@@ -1724,7 +1724,9 @@
         const playerFrame = $('#player-panel-frame');
         if (playerFrame) {
           playerFrame.style.display = 'block';
-          // Send ready message to iframe
+          // Send message to iframe to open panel
+          playerFrame.contentWindow.postMessage({ action: 'open' }, '*');
+          // Send ready message to Lua
           postNUI('ready', { ok: true });
         }
         break;
@@ -1740,7 +1742,9 @@
         const staffFrame = $('#staff-panel-frame');
         if (staffFrame) {
           staffFrame.style.display = 'block';
-          // Send ready message to iframe
+          // Send message to iframe to open panel
+          staffFrame.contentWindow.postMessage({ action: 'open' }, '*');
+          // Send ready message to Lua
           postNUI('ready', { ok: true });
         }
         break;
@@ -1749,19 +1753,52 @@
       case 'closePlayerPanel': {
         log('Closing Player Panel...');
         const playerFrame = $('#player-panel-frame');
-        if (playerFrame) playerFrame.style.display = 'none';
+        if (playerFrame) {
+          // Send close message to iframe
+          playerFrame.contentWindow.postMessage({ action: 'close' }, '*');
+          playerFrame.style.display = 'none';
+        }
         break;
       }
 
       case 'closeStaffPanel': {
         log('Closing Staff Panel...');
         const staffFrame = $('#staff-panel-frame');
-        if (staffFrame) staffFrame.style.display = 'none';
+        if (staffFrame) {
+          // Send close message to iframe
+          staffFrame.contentWindow.postMessage({ action: 'close' }, '*');
+          staffFrame.style.display = 'none';
+        }
         break;
       }
 
       default:
         log('Unhandled action:', action);
+    }
+  });
+
+  // ===========================
+  // IFRAME COMMUNICATION LISTENER
+  // ===========================
+  // Listen for messages from iframes (player.html and staff.html)
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+
+    // Security check - only process messages from our own iframes
+    if (!data || !data.action) return;
+
+    // Handle iframe close requests
+    if (data.action === 'closeFromIframe') {
+      const panelType = data.panelType;
+      log('Iframe requested close:', panelType);
+
+      if (panelType === 'player') {
+        const playerFrame = $('#player-panel-frame');
+        if (playerFrame) playerFrame.style.display = 'none';
+      } else if (panelType === 'staff') {
+        const staffFrame = $('#staff-panel-frame');
+        if (staffFrame) staffFrame.style.display = 'none';
+      }
     }
   });
 
