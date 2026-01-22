@@ -22,7 +22,11 @@ DP.PriceFactors = {
     inflation = {
         weight = 0.30,  -- 30% de peso
         getValue = function()
+            if not SE.State or not SE.State.Get then return 0.02 end
+
             local state = SE.State.Get('economy')
+            if not state then return 0.02 end
+
             return state.inflation or 0.02
         end
     },
@@ -67,8 +71,10 @@ DP.PriceFactors = {
     selic = {
         weight = 0.15,  -- 15% de peso
         getValue = function()
+            if not SE.State or not SE.State.Get then return 1.0 + (0.05 * 0.5) end
+
             local state = SE.State.Get('economy')
-            local selic = state.selic or 0.05
+            local selic = (state and state.selic) or 0.05
 
             -- SELIC alta = preços altos (custo de produção)
             return 1.0 + (selic * 0.5)
