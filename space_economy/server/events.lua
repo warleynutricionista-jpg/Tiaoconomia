@@ -188,25 +188,25 @@ local function resolveTaxType(reason, meta)
 end
 
 --============================================================
--- Abertura de painéis
+-- Abertura de painéis (DESATIVADOS v5.0 - usar new_panels.lua)
 --============================================================
-RegisterNetEvent('space_economy:server_openTaxPanel', function()
-  local src = source
-  TriggerClientEvent('space_economy:client_open', src, 'tax', {})
-end)
+-- RegisterNetEvent('space_economy:server_openTaxPanel', function()
+--   local src = source
+--   TriggerClientEvent('space_economy:client_open', src, 'tax', {})
+-- end)
 
-RegisterNetEvent('space_economy:server_openAdminPanel', function()
-  local src = source
+-- RegisterNetEvent('space_economy:server_openAdminPanel', function()
+--   local src = source
 
-  if not AdminAllowed(src) then
-    SE.Log('admin', 'Acesso negado (permissão)', { src = src })
-    Notify(src, 'Acesso negado.', 'error')
-    return
-  end
+--   if not AdminAllowed(src) then
+--     SE.Log('admin', 'Acesso negado (permissão)', { src = src })
+--     Notify(src, 'Acesso negado.', 'error')
+--     return
+--   end
 
-  local st = (SE.Admin and SE.Admin.GetStatePayload and SE.Admin.GetStatePayload()) or {}
-  TriggerClientEvent('space_economy:client_open', src, 'admin', st)
-end)
+--   local st = (SE.Admin and SE.Admin.GetStatePayload and SE.Admin.GetStatePayload()) or {}
+--   TriggerClientEvent('space_economy:client_open', src, 'admin', st)
+-- end)
 
 --============================================================
 -- Admin Data Router (ÚNICO!)
