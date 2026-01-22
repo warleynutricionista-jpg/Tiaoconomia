@@ -31,11 +31,16 @@ DP.PriceFactors = {
     gdp = {
         weight = 0.25,  -- 25% de peso
         getValue = function()
-            local monitor = SE.EconomyMonitor.GetCurrentState()
-            if not monitor then return 1.0 end
+            if not SE.EconomyMonitor or not SE.EconomyMonitor.GetReport then
+                return 1.0
+            end
+
+            local report = SE.EconomyMonitor.GetReport()
+            if not report or not report.pib then return 1.0 end
 
             -- PIB alto = preços altos (demanda)
-            local gdpGrowth = monitor.gdp_growth or 0
+            -- Usa variação percentual do PIB total
+            local gdpGrowth = report.pib.growth or 0
             return 1.0 + (gdpGrowth / 100)
         end
     },
@@ -44,9 +49,13 @@ DP.PriceFactors = {
     money_circulation = {
         weight = 0.20,  -- 20% de peso
         getValue = function()
+            if not SE.State or not SE.State.Get then return 1.0 end
+
             local state = SE.State.Get('economy')
+            if not state then return 1.0 end
+
             local circulation = state.total_circulation or 1000000
-            local target = Config.Economy.TargetCirculation or 10000000
+            local target = (Config.Economy and Config.Economy.TargetCirculation) or 10000000
 
             -- Quanto mais dinheiro circulando, mais inflação
             local ratio = circulation / target
@@ -70,10 +79,14 @@ DP.PriceFactors = {
     economic_events = {
         weight = 0.10,  -- 10% de peso
         getValue = function()
-            local activeEvent = SE.EconomicEvents.GetActiveEvent()
-            if not activeEvent then return 1.0 end
+            if not SE.EconomicEvents or not SE.EconomicEvents.GetCurrentEvent then
+                return 1.0
+            end
 
-            return activeEvent.price_multiplier or 1.0
+            local currentEvent = SE.EconomicEvents.GetCurrentEvent()
+            if not currentEvent then return 1.0 end
+
+            return currentEvent.price_multiplier or 1.0
         end
     }
 }

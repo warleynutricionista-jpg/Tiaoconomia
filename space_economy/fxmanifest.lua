@@ -114,6 +114,11 @@ dependencies {
 -- EXPORTS (Para outros recursos)
 -- ============================================================
 
+-- Core Object (v4.1)
+exports {
+  'GetCoreObject',  -- Retorna o objeto SE principal
+}
+
 -- Treasury
 exports {
   'GetTreasuryBalance',
