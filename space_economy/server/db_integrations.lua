@@ -46,6 +46,7 @@ if Config then
 end
 
 DBInt.State = {
+  active = true,
   initialized = false,
   running = {},
   lastCheck = {},
@@ -1094,6 +1095,13 @@ function DBInt.StartSchedulers()
     return
   end
 
+  if DBInt.State.schedulersStarted then
+    DBInt.Debug('Schedulers já iniciados; evitando duplicação.')
+    return
+  end
+
+  DBInt.State.schedulersStarted = true
+  DBInt.State.active = true
   print('[^2SPACE ECONOMY DB-INT^7] Iniciando schedulers de integração...')
 
   for systemName, sys in pairs(DBInt.Config.Systems) do
@@ -1101,13 +1109,21 @@ function DBInt.StartSchedulers()
       CreateThread(function()
         Wait(10000)
         DBInt.Debug(('Scheduler ativo: %s (intervalo %dms)'):format(systemName, sys.interval))
-        while true do
+        while DBInt.State.active do
           DBInt.CheckSystem(systemName)
           Wait(sys.interval)
         end
+        DBInt.Debug(('Scheduler encerrado: %s'):format(systemName))
       end)
     end
   end
+end
+
+function DBInt.StopSchedulers()
+  if not DBInt.State.schedulersStarted then return end
+  DBInt.State.active = false
+  DBInt.State.schedulersStarted = false
+  print('[^3SPACE ECONOMY DB-INT^7] Schedulers finalizados.')
 end
 
 function DBInt.Initialize()
@@ -1170,6 +1186,12 @@ exports('ForceCheckSystem', function(systemName)
     return true
   end
   return false
+end)
+
+
+AddEventHandler('onResourceStop', function(resourceName)
+  if resourceName ~= GetCurrentResourceName() then return end
+  DBInt.StopSchedulers()
 end)
 
 print('[^2SPACE ECONOMY^7] db_integrations.lua carregado (QBOX Hardened / sem goto)')
