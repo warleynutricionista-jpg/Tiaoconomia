@@ -634,24 +634,16 @@ end)
 
 -- Inicializa quando o resource começar
 Citizen.CreateThread(function()
-    local maxAttempts = 12
-    local intervalMs = 5000
-
     if not DP.Boot.waitingLogged then
         DP.Boot.waitingLogged = true
         print('^3[DynamicPricing] Aguardando ServiceRegistry para bootstrap...^7')
     end
 
-    for _ = 1, maxAttempts do
+    while not DP.Ready do
         if DP.Initialize() then
             return
         end
-        Wait(intervalMs)
-    end
-
-    if not DP.Boot.failedLogged then
-        DP.Boot.failedLogged = true
-        print('^1[DynamicPricing] Bootstrap adiado: ServiceRegistry indisponível.^7')
+        Wait(5000)
     end
 end)
 

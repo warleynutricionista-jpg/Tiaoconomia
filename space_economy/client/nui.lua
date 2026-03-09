@@ -23,6 +23,7 @@ end
 
 local function openUI(mode, payload)
   uiOpen = true
+  SE.Client.EconomyUIOpen = true
   uiAck = false
 
   payload = payload or {}
@@ -99,14 +100,12 @@ end
 function SE.Client.OpenAdminPanel()
   if uiOpen then return end
   currentPanel = 'staff'
-  SE.Client.EconomyUIOpen = true
   TriggerServerEvent('space_economy:server_openStaffPanel')
 end
 
 function SE.Client.OpenUITest()
   if uiOpen then return end
   currentPanel = 'test'
-  SE.Client.EconomyUIOpen = true
   TriggerEvent('space_economy:client_open', 'admin', {})
 end
 

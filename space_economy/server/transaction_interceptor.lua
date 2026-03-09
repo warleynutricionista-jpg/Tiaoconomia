@@ -654,18 +654,14 @@ end
 
 -- Inicializa
 Citizen.CreateThread(function()
-    local maxAttempts = 20
-    local intervalMs = 2000
     print('^3[TransactionInterceptor] Aguardando ServiceRegistry para inicializar...^7')
 
-    for _ = 1, maxAttempts do
+    while not TI.Initialized do
         if TI.Initialize() then
             return
         end
-        Wait(intervalMs)
+        Wait(5000)
     end
-
-    print('^1[TransactionInterceptor] Inicialização adiada: ServiceRegistry não ficou pronto.^7')
 end)
 
 AddEventHandler('space_economy:serviceRegistryReady', function()
