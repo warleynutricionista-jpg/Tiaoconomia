@@ -13,7 +13,7 @@
   // CONFIGURATION & CONSTANTS
   // ===========================
   const RESOURCE_NAME = (typeof GetParentResourceName === 'function' && GetParentResourceName()) || 'space_economy';
-  const DEBUG = false;
+  const DEBUG = (window.__SPACE_ECO_DEBUG__ === true) || (localStorage.getItem('spaceeco_debug') === '1');
 
   const log = (...args) => DEBUG && console.log('[SpaceEco]', ...args);
   const error = (...args) => console.error('[SpaceEco Error]', ...args);
@@ -399,11 +399,15 @@
 
       if (visible) {
         body.style.display = 'block';
+        if (overlay) overlay.setAttribute('aria-hidden', 'false');
         requestAnimationFrame(() => {
           if (overlay) overlay.classList.add('is-active');
         });
       } else {
-        if (overlay) overlay.classList.remove('is-active');
+        if (overlay) {
+          overlay.classList.remove('is-active');
+          overlay.setAttribute('aria-hidden', 'true');
+        }
         setTimeout(() => {
           body.style.display = 'none';
         }, 300);
@@ -1617,6 +1621,20 @@
     });
   }
 
+  function showRootForIframePanel(panelName) {
+    const body = document.body;
+    const overlay = $('.overlay');
+
+    body.style.display = 'block';
+    if (overlay) {
+      overlay.classList.add('is-active');
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    UI.hideAllCards();
+    log(`[UI] Root prepared for ${panelName} iframe panel`);
+  }
+
   // ===========================
   // NUI MESSAGE HANDLER
   // ===========================
@@ -1727,18 +1745,17 @@
       case 'openPlayerPanel': {
         log('Opening Player Panel (v5.0)...');
         State.uiOpen = true;
-        // Hide old panels
-        const overlay = $('.overlay');
-        if (overlay) overlay.setAttribute('aria-hidden', 'true');
+        showRootForIframePanel('player');
 
-        // Show player panel iframe
         const playerFrame = $('#player-panel-frame');
-        if (playerFrame) {
+        if (playerFrame && playerFrame.contentWindow) {
           playerFrame.style.display = 'block';
-          // Send message to iframe to open panel
           playerFrame.contentWindow.postMessage({ action: 'open' }, '*');
-          // Send ready message to Lua
           postNUI('ready', { ok: true });
+          log('[NUI] Player panel ready ACK sent');
+        } else {
+          error('[NUI] player-panel-frame not found or not ready');
+          postNUI('forceClose');
         }
         break;
       }
@@ -1746,18 +1763,17 @@
       case 'openStaffPanel': {
         log('Opening Staff Panel (v5.0)...');
         State.uiOpen = true;
-        // Hide old panels
-        const overlay = $('.overlay');
-        if (overlay) overlay.setAttribute('aria-hidden', 'true');
+        showRootForIframePanel('staff');
 
-        // Show staff panel iframe
         const staffFrame = $('#staff-panel-frame');
-        if (staffFrame) {
+        if (staffFrame && staffFrame.contentWindow) {
           staffFrame.style.display = 'block';
-          // Send message to iframe to open panel
           staffFrame.contentWindow.postMessage({ action: 'open' }, '*');
-          // Send ready message to Lua
           postNUI('ready', { ok: true });
+          log('[NUI] Staff panel ready ACK sent');
+        } else {
+          error('[NUI] staff-panel-frame not found or not ready');
+          postNUI('forceClose');
         }
         break;
       }
@@ -1815,6 +1831,7 @@
         if (staffFrame) staffFrame.style.display = 'none';
       }
 
+      UI.close(false);
       postNUI('forceClose');
     }
   });
