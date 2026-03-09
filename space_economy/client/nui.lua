@@ -377,8 +377,9 @@ end)
 -- NEW STAFF PANEL
 --============================================================
 RegisterNetEvent('space_economy:client_open_staff', function()
-  currentPanel = 'staff'
-  openPanelAction('openStaffPanel')
+  -- Compat legado: converte para o fluxo único da NUI principal
+  currentPanel = 'admin'
+  openUI('admin', {})
 end)
 
 RegisterNUICallback('closeStaffPanel', function(_, cb)

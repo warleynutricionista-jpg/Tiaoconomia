@@ -249,7 +249,8 @@ RegisterNetEvent('space_economy:server_openStaffPanel', function()
     return
   end
 
-  TriggerClientEvent('space_economy:client_open_staff', src)
+  -- Abre o painel administrativo principal da NUI (modo admin)
+  TriggerClientEvent('space_economy:client_open', src, 'admin', {})
 end)
 
 -- Get economy overview (with cache)
