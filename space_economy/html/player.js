@@ -67,16 +67,22 @@
     }
   }
 
-  function closePlayerPanel() {
+  function closePlayerPanel(options = {}) {
+    const silent = options.silent === true;
     const overlay = $('#player-overlay');
     if (overlay) {
       overlay.classList.remove('active');
     }
-    postNUI('closePlayerPanel');
 
-    // Notify parent window to hide the iframe
-    if (window.parent !== window) {
-      window.parent.postMessage({ action: 'closeFromIframe', panelType: 'player' }, '*');
+    document.body.classList.remove('modal-open');
+    $$('.modal-overlay').forEach((modal) => modal.classList.remove('active'));
+
+    if (!silent) {
+      postNUI('closePlayerPanel');
+
+      if (window.parent !== window) {
+        window.parent.postMessage({ action: 'closeFromIframe', panelType: 'player' }, '*');
+      }
     }
   }
 
@@ -724,7 +730,7 @@
         openPlayerPanel();
         break;
       case 'close':
-        closePlayerPanel();
+        closePlayerPanel({ silent: true });
         break;
       case 'updateData':
         if (data.dataType && data.data) {
@@ -753,6 +759,7 @@
   // ===== KEYBOARD HANDLER =====
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      event.preventDefault();
       closePlayerPanel();
     }
   });

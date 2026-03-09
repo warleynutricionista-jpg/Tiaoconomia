@@ -21,6 +21,7 @@ TI.Config = {
 
 -- Rastreamento de transações
 TI.TransactionQueue = {}
+TI.Initialized = false
 TI.Statistics = {
     total_intercepted = 0,
     total_volume = 0,
@@ -75,28 +76,31 @@ TI.MoneyEvents = {
 function TI.WrapMoneyEvent(eventName, originalHandler)
     return function(...)
         local args = {...}
-        local src = source
         local resource = GetInvokingResource() or 'unknown'
 
         -- Extrai informações da transação
         local transactionData = TI.ExtractTransactionData(eventName, args)
+        local src = tonumber(transactionData.source or source) or 0
 
         -- Registra a interceptação
         TI.LogInterception(src, resource, eventName, transactionData)
 
         -- Verifica se o recurso está registrado
-        local service = SE.ServiceRegistry.GetService(resource)
+        local service = nil
+        if SE.ServiceRegistry and SE.ServiceRegistry.GetService then
+            service = SE.ServiceRegistry.GetService(resource)
+        end
 
         if not service then
             -- Detecta serviço não registrado
-            SE.ServiceRegistry.DetectUnregisteredService(resource, {
+            if SE.ServiceRegistry and SE.ServiceRegistry.DetectUnregisteredService then SE.ServiceRegistry.DetectUnregisteredService(resource, {
                 timestamp = os.time(),
                 source = src,
                 amount = transactionData.amount or 0,
                 type = transactionData.type or 'unknown',
                 account = transactionData.account or 'unknown',
                 reason = eventName
-            })
+            }) end
 
             -- Se configurado para bloquear
             if TI.Config.block_unregistered then
@@ -135,40 +139,92 @@ end
 ---@param eventName string
 ---@param args table
 ---@return table transactionData
+local KNOWN_ACCOUNTS = {
+    cash = true, bank = true, crypto = true, money = true, markedbills = true
+}
+
+local function normalizeText(v, fallback)
+    local out = tostring(v or fallback or '')
+    if out == '' then return tostring(fallback or '') end
+    return out
+end
+
+local function normalizeAccount(v)
+    local account = tostring(v or ''):lower()
+    if KNOWN_ACCOUNTS[account] then return account end
+    return nil
+end
+
+local function normalizeTxType(v)
+    local op = tostring(v or ''):lower()
+    if op == 'add' or op == 'remove' or op == 'set' or op == 'paycheck' or op == 'deposit' or op == 'withdraw' then
+        if op == 'deposit' then return 'add' end
+        if op == 'withdraw' then return 'remove' end
+        return op
+    end
+    return nil
+end
+
 function TI.ExtractTransactionData(eventName, args)
     local data = {
-        amount = nil,
+        amount = 0,
         type = nil,
         account = nil,
-        reason = nil
+        reason = nil,
+        source = nil,
+        raw_args = args
     }
 
-    -- Tenta diferentes formatos de argumentos
-    if #args >= 1 then
-        -- Formato 1: source, amount, account, reason (mais comum)
-        if type(args[1]) == 'number' and #args >= 2 then
-            data.amount = args[2]
-            data.account = args[3] or 'cash'
-            data.reason = args[4] or eventName
-        -- Formato 2: amount, account, reason (source implícito)
-        elseif type(args[1]) == 'number' then
-            data.amount = args[1]
-            data.account = args[2] or 'cash'
-            data.reason = args[3] or eventName
-        -- Formato 3: table com dados
-        elseif type(args[1]) == 'table' then
-            data.amount = args[1].amount or args[1].value or args[1].money
-            data.account = args[1].account or args[1].type or 'cash'
-            data.reason = args[1].reason or args[1].description or eventName
+    local lowerEvent = tostring(eventName or ''):lower()
+
+    for i = 1, #args do
+        local value = args[i]
+        local t = type(value)
+
+        if t == 'number' then
+            if i == 1 and value > 0 and value < 65536 then
+                data.source = data.source or math.floor(value)
+            elseif data.amount == 0 then
+                data.amount = tonumber(value) or 0
+            end
+        elseif t == 'string' then
+            local acc = normalizeAccount(value)
+            if acc and not data.account then
+                data.account = acc
+            else
+                local op = normalizeTxType(value)
+                if op and not data.type then
+                    data.type = op
+                elseif not data.reason and value ~= '' then
+                    data.reason = value
+                end
+            end
+        elseif t == 'table' then
+            data.amount = tonumber(value.amount or value.value or value.money or data.amount) or data.amount
+            data.account = normalizeAccount(value.account or value.moneyType or value.type) or data.account
+            data.type = normalizeTxType(value.transaction_type or value.action or value.operation or value.type) or data.type
+            data.reason = normalizeText(value.reason or value.description, data.reason)
+            data.source = tonumber(value.source or value.src or value.playerId or data.source) or data.source
         end
     end
 
-    -- Determina tipo (add/remove)
-    if eventName:lower():match('add') or eventName:lower():match('deposit') then
-        data.type = 'add'
-    elseif eventName:lower():match('remove') or eventName:lower():match('withdraw') then
-        data.type = 'remove'
+    if not data.type then
+        if lowerEvent:match('add') or lowerEvent:match('deposit') then
+            data.type = 'add'
+        elseif lowerEvent:match('remove') or lowerEvent:match('withdraw') then
+            data.type = 'remove'
+        elseif lowerEvent:match('set') then
+            data.type = 'set'
+        elseif lowerEvent:match('paycheck') then
+            data.type = 'paycheck'
+        else
+            data.type = 'unknown'
+        end
     end
+
+    data.account = data.account or 'cash'
+    data.reason = normalizeText(data.reason, eventName)
+    data.amount = tonumber(data.amount) or 0
 
     return data
 end
@@ -208,18 +264,22 @@ local originalExport = exports
 
 -- Monkey patch no sistema de exports (AVANÇADO)
 _G.exports = setmetatable({}, {
-    __index = function(t, resource)
+    __index = function(_, resource)
         -- Se é um recurso relacionado a banco/dinheiro
         if resource == 'qb-banking' or resource == 'ps-banking' or
            resource == 'esx_society' or resource:match('bank') then
-
             return setmetatable({}, {
-                __index = function(t2, exportName)
-                    local originalExportFunc = originalExport[resource][exportName]
+                __index = function(_, exportName)
+                    local originalExportFunc = originalExport[resource] and originalExport[resource][exportName]
+                    if type(originalExportFunc) ~= 'function' then
+                        return function(...)
+                            return originalExport[resource][exportName](...)
+                        end
+                    end
 
                     -- Wrappa a função de export
                     return function(...)
-                        local invokingResource = GetInvokingResource()
+                        local invokingResource = GetInvokingResource() or 'unknown'
 
                         -- Loga a chamada
                         TI.LogExportCall(invokingResource, resource, exportName, {...})
@@ -267,7 +327,8 @@ function TI.LogInterception(source, resource, eventName, transactionData)
 
     -- Loga no banco de dados se configurado
     if TI.Config.log_all_transactions then
-        MySQL.Async.execute([[
+        local okDb, errDb = pcall(function()
+            MySQL.Async.execute([[
             INSERT INTO space_economy_intercepted_transactions
             (timestamp, source, resource, event_name, amount, transaction_type, account, reason, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -282,18 +343,22 @@ function TI.LogInterception(source, resource, eventName, transactionData)
             transactionData.reason or '',
             json.encode(transactionData)
         })
+        end)
+        if not okDb then
+            print(('^1[TransactionInterceptor] Erro ao inserir transação interceptada: %s^7'):format(tostring(errDb)))
+        end
     end
 
     -- Se o valor for alto, envia notificação para ServiceRegistry
     if math.abs(amount) >= TI.Config.alert_threshold then
-        SE.ServiceRegistry.LogTransaction(
+        if SE.ServiceRegistry and SE.ServiceRegistry.LogTransaction then SE.ServiceRegistry.LogTransaction(
             source,
             amount,
             txType,
             transactionData.account or 'cash',
             transactionData.reason or eventName,
             { intercepted = true, event = eventName }
-        )
+        ) end
     end
 end
 
@@ -421,7 +486,7 @@ function TI.NotifyAdmins(type, data)
                 type = 'transaction_interceptor',
                 subtype = type,
                 data = data
-            })
+            }) end
         end
     end
 end
@@ -507,28 +572,35 @@ function TI.MonitorSQLQuery(query, params)
         print(('  ^7Query: %s'):format(query))
 
         -- Registra no log
-        MySQL.Async.execute([[
-            INSERT INTO space_economy_sql_monitor
+        local okDb, errDb = pcall(function()
+            MySQL.Async.execute([[            INSERT INTO space_economy_sql_monitor
             (timestamp, resource, query_text, params)
             VALUES (?, ?, ?, ?)
         ]], {
-            os.time(),
-            resource,
-            query,
-            json.encode(params)
-        })
+                os.time(),
+                resource,
+                query,
+                json.encode(params)
+            })
+        end)
+
+        if not okDb then
+            print(('^1[TransactionInterceptor] Erro no monitor SQL: %s^7'):format(tostring(errDb)))
+        end
 
         -- Detecta como serviço não registrado se aplicável
-        local service = SE.ServiceRegistry.GetService(resource)
+        local service = (SE.ServiceRegistry and SE.ServiceRegistry.GetService) and SE.ServiceRegistry.GetService(resource) or nil
         if not service and resource ~= 'unknown' then
-            SE.ServiceRegistry.DetectUnregisteredService(resource, {
-                timestamp = os.time(),
-                source = nil,
-                amount = 0,
-                type = 'sql_direct',
-                account = 'unknown',
-                reason = 'SQL direto: ' .. query
-            })
+            if SE.ServiceRegistry and SE.ServiceRegistry.DetectUnregisteredService then
+                SE.ServiceRegistry.DetectUnregisteredService(resource, {
+                    timestamp = os.time(),
+                    source = nil,
+                    amount = 0,
+                    type = 'sql_direct',
+                    account = 'unknown',
+                    reason = 'SQL direto: ' .. query
+                })
+            end
         end
     end
 end
@@ -538,6 +610,14 @@ end
 -- =====================================================
 
 function TI.Initialize()
+    if TI.Initialized then
+        return true
+    end
+
+    if not (SE.ServiceRegistry and SE.ServiceRegistry.IsReady and SE.ServiceRegistry.IsReady()) then
+        return false
+    end
+
     print('^2[TransactionInterceptor] Inicializando interceptador de transações...^7')
 
     -- Hook em frameworks
@@ -553,10 +633,14 @@ function TI.Initialize()
         end)
     end
 
+    TI.Initialized = true
+
     print('^2[TransactionInterceptor] Sistema inicializado!^7')
     print(('^3[TransactionInterceptor] Modo de bloqueio: %s^7'):format(
         TI.Config.block_unregistered and '^2ATIVADO^7' or '^1DESATIVADO^7'
     ))
+
+    return true
 end
 
 -- Exporta funções
@@ -570,6 +654,27 @@ end
 
 -- Inicializa
 Citizen.CreateThread(function()
-    Wait(5000) -- Aguarda outros sistemas
-    TI.Initialize()
+    local maxAttempts = 20
+    local intervalMs = 2000
+    print('^3[TransactionInterceptor] Aguardando ServiceRegistry para inicializar...^7')
+
+    for _ = 1, maxAttempts do
+        if TI.Initialize() then
+            return
+        end
+        Wait(intervalMs)
+    end
+
+    print('^1[TransactionInterceptor] Inicialização adiada: ServiceRegistry não ficou pronto.^7')
+end)
+
+AddEventHandler('space_economy:serviceRegistryReady', function()
+    if not TI.Initialized then
+        TI.Initialize()
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    TI.Initialized = false
 end)

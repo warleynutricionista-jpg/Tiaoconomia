@@ -126,17 +126,17 @@ end
 -- Hooks de atualização automática
 --============================================================
 
--- QBCore
-AddEventHandler('QBCore:Server:OnPlayerLoaded', function(src)
-  -- alguns cores chamam sem param (source), garantimos:
-  src = src or source
+-- QBX/QBCore safe hooks
+AddEventHandler('qbx_core:server:playerLoaded', function(playerId)
+  local src = playerId or source
+  if not src then return end
   CreateThread(function()
     Wait(500)
     SE.CharCache.Upsert(src)
   end)
 end)
 
--- QBX (fallback genérico)
+-- Fallback genérico
 AddEventHandler('playerJoining', function()
   local src = source
   CreateThread(function()

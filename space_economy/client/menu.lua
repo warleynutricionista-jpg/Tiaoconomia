@@ -801,7 +801,6 @@ RegisterCommand('eco_menu_dividas', function()
   openPlayerDebtsMenu()
 end, false)
 
-RegisterKeyMapping('eco_eventos', 'Economia: menu de intervenção econômica', 'keyboard', 'F10')
 
 CreateThread(function()
   Wait(1000)
