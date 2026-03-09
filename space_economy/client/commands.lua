@@ -62,6 +62,13 @@ RegisterCommand('eco_open_adminpanel', function()
   end
 end, false)
 
+
+-- Neutralizador de bind legado: se algum cliente ainda tiver F10 -> comando `admin`,
+-- não abre painel algum. O atalho oficial é F12 (`eco_open_adminpanel`).
+RegisterCommand('admin', function()
+  n('Comando /admin legado desativado neste recurso. Use F12 para painel administrativo.', 'error')
+end, false)
+
 RegisterCommand('eco_testui', function()
   if SE and SE.Client and SE.Client.OpenUITest then
     SE.Client.OpenUITest()

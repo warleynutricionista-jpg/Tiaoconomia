@@ -16,15 +16,31 @@ SE.Client.EconomyUIOpen = false
 -- usado quando abrimos modo "payment" (opcional)
 local lastPayment = { tax = 0, reason = 'Imposto' }
 
+local DEBUG_UI = false
+local pendingFocus = false
+
+local function dlog(msg, payload)
+  if not DEBUG_UI then return end
+  if payload ~= nil then
+    print(('[space_economy][nui] %s | %s'):format(msg, json.encode(payload)))
+  else
+    print(('[space_economy][nui] %s'):format(msg))
+  end
+end
+
 local function setFocus(state)
+  dlog(('SetNuiFocus(%s)'):format(state and 'true' or 'false'))
   SetNuiFocus(state, state)
-  SetNuiFocusKeepInput(false)
+  if SetNuiFocusKeepInput then
+    SetNuiFocusKeepInput(false)
+  end
 end
 
 local function openUI(mode, payload)
   uiOpen = true
   SE.Client.EconomyUIOpen = true
   uiAck = false
+  pendingFocus = true
 
   payload = payload or {}
 
@@ -34,32 +50,29 @@ local function openUI(mode, payload)
     lastPayment.reason = tostring(payload.reason or 'Imposto')
   end
 
-  setFocus(true)
-
-  -- Protocolo único (compat com html/script.js novo)
-  SendNUIMessage({
+  local message = {
     action = 'open',
     mode = tostring(mode or ''),
     payload = payload
-  })
+  }
 
-  -- watchdog com retry: aguarda resposta da NUI antes de fechar
+  dlog('openUI -> SendNUIMessage(open)', message)
+  SendNUIMessage(message)
+
+  -- watchdog com retry: aguarda resposta da NUI antes de aplicar foco
   CreateThread(function()
-    Wait(5000) -- aumentado de 2500 para 5000ms
+    Wait(1500)
 
     if uiOpen and not uiAck then
-      -- Retry uma vez antes de desistir
-      SendNUIMessage({
-        action = 'open',
-        mode = tostring(mode or ''),
-        payload = payload
-      })
+      dlog('openUI watchdog retry (open)')
+      SendNUIMessage(message)
 
-      Wait(3000) -- aguarda mais 3 segundos
+      Wait(2000)
 
       if uiOpen and not uiAck then
-        -- Ainda sem resposta, fecha UI
+        dlog('openUI watchdog timeout -> force close')
         uiOpen = false
+        pendingFocus = false
         setFocus(false)
         SendNUIMessage({ action = 'close' })
 
@@ -79,6 +92,7 @@ local function applyClosedState()
   uiOpen = false
   currentPanel = nil
   uiAck = false
+  pendingFocus = false
   SE.Client.EconomyUIOpen = false
   setFocus(false)
 end
@@ -88,6 +102,32 @@ local function closeUI(notifyNui)
   if notifyNui ~= false then
     SendNUIMessage({ action = 'close' })
   end
+end
+
+local function openPanelAction(action)
+  if uiOpen then return end
+
+  uiOpen = true
+  uiAck = false
+  pendingFocus = true
+  SE.Client.EconomyUIOpen = true
+
+  dlog('openPanelAction -> SendNUIMessage', { action = action })
+  SendNUIMessage({ action = action })
+
+  CreateThread(function()
+    Wait(1500)
+    if uiOpen and not uiAck then
+      dlog('openPanelAction watchdog retry', { action = action })
+      SendNUIMessage({ action = action })
+
+      Wait(2000)
+      if uiOpen and not uiAck then
+        dlog('openPanelAction watchdog timeout -> force close')
+        closeUI(true)
+      end
+    end
+  end)
 end
 
 function SE.Client.OpenTaxPanel()
@@ -100,6 +140,7 @@ end
 function SE.Client.OpenAdminPanel()
   if uiOpen then return end
   currentPanel = 'staff'
+  dlog('F12/command -> OpenAdminPanel() called, requesting server permission')
   TriggerServerEvent('space_economy:server_openStaffPanel')
 end
 
@@ -149,6 +190,11 @@ end)
 -- handshake / ACK (script.js chama post("ready"))
 RegisterNUICallback('ready', function(_, cb)
   uiAck = true
+  dlog('NUI ready ACK received')
+  if uiOpen and pendingFocus then
+    setFocus(true)
+    pendingFocus = false
+  end
   cb({ ok = true })
 end)
 
@@ -245,12 +291,8 @@ end)
 -- NEW PLAYER PANEL
 --============================================================
 RegisterNetEvent('space_economy:client_open_player', function()
-  if uiOpen then return end
-  uiOpen = true
   currentPanel = 'player'
-  SE.Client.EconomyUIOpen = true
-  setFocus(true)
-  SendNUIMessage({ action = 'openPlayerPanel' })
+  openPanelAction('openPlayerPanel')
 end)
 
 RegisterNUICallback('closePlayerPanel', function(_, cb)
@@ -335,12 +377,9 @@ end)
 -- NEW STAFF PANEL
 --============================================================
 RegisterNetEvent('space_economy:client_open_staff', function()
-  if uiOpen then return end
-  uiOpen = true
-  currentPanel = 'staff'
-  SE.Client.EconomyUIOpen = true
-  setFocus(true)
-  SendNUIMessage({ action = 'openStaffPanel' })
+  -- Compat legado: converte para o fluxo único da NUI principal
+  currentPanel = 'admin'
+  openUI('admin', {})
 end)
 
 RegisterNUICallback('closeStaffPanel', function(_, cb)
