@@ -53,7 +53,7 @@ RegisterCommand('taxas', function()
   end
 end, false)
 
-RegisterCommand('admin', function()
+RegisterCommand('eco_open_adminpanel', function()
   n('Solicitando painel administrativo...', 'inform')
   if SE and SE.Client and SE.Client.OpenAdminPanel then
     SE.Client.OpenAdminPanel()
@@ -71,7 +71,7 @@ RegisterCommand('eco_testui', function()
 end, false)
 
 RegisterKeyMapping('taxas', 'Economia: abrir painel de impostos', 'keyboard', 'F7')
-RegisterKeyMapping('admin', 'Economia: abrir painel administrativo', 'keyboard', 'F12')
+RegisterKeyMapping('eco_open_adminpanel', 'Economia: abrir painel administrativo', 'keyboard', 'F12')
 RegisterKeyMapping('eco_testui', 'Economia: TESTE abrir NUI admin local', 'keyboard', '5')
 
 CreateThread(function()
@@ -81,7 +81,7 @@ CreateThread(function()
     -- TriggerEvent('chat:addSuggestion', '/taxas', 'Abrir painel de impostos/pagamentos') -- DESATIVADO v5.0
     -- TriggerEvent('chat:addSuggestion', '/economia', 'Abrir painel administrativo (requer permissão)') -- DESATIVADO v5.0
     TriggerEvent('chat:addSuggestion', '/taxas', 'Abrir painel de impostos')
-    TriggerEvent('chat:addSuggestion', '/admin', 'Abrir painel administrativo (requer permissão)')
+    TriggerEvent('chat:addSuggestion', '/eco_open_adminpanel', 'Abrir painel administrativo (requer permissão)')
     TriggerEvent('chat:addSuggestion', '/eco_testui', 'TESTE: abrir painel admin local (diagnóstico NUI)')
   end)
 end)
