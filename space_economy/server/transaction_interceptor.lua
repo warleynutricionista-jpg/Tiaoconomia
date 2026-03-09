@@ -264,18 +264,22 @@ local originalExport = exports
 
 -- Monkey patch no sistema de exports (AVANÇADO)
 _G.exports = setmetatable({}, {
-    __index = function(t, resource)
+    __index = function(_, resource)
         -- Se é um recurso relacionado a banco/dinheiro
         if resource == 'qb-banking' or resource == 'ps-banking' or
            resource == 'esx_society' or resource:match('bank') then
-
             return setmetatable({}, {
-                __index = function(t2, exportName)
-                    local originalExportFunc = originalExport[resource][exportName]
+                __index = function(_, exportName)
+                    local originalExportFunc = originalExport[resource] and originalExport[resource][exportName]
+                    if type(originalExportFunc) ~= 'function' then
+                        return function(...)
+                            return originalExport[resource][exportName](...)
+                        end
+                    end
 
                     -- Wrappa a função de export
                     return function(...)
-                        local invokingResource = GetInvokingResource()
+                        local invokingResource = GetInvokingResource() or 'unknown'
 
                         -- Loga a chamada
                         TI.LogExportCall(invokingResource, resource, exportName, {...})
@@ -284,7 +288,7 @@ _G.exports = setmetatable({}, {
                         return originalExportFunc(...)
                     end
                 end
-            }) end
+            })
         end
 
         -- Retorna export normal para outros recursos
@@ -607,12 +611,10 @@ end
 
 function TI.Initialize()
     if TI.Initialized then
-        print('^3[TransactionInterceptor] Já inicializado; pulando bootstrap duplicado.^7')
-        return
+        return true
     end
 
     if not (SE.ServiceRegistry and SE.ServiceRegistry.IsReady and SE.ServiceRegistry.IsReady()) then
-        print('^3[TransactionInterceptor] Aguardando ServiceRegistry ficar pronto...^7')
         return false
     end
 
@@ -652,16 +654,27 @@ end
 
 -- Inicializa
 Citizen.CreateThread(function()
-    local attempts = 0
-    while attempts < 30 do
-        attempts = attempts + 1
-        if TI.Initialize() then return end
-        Wait(1000)
+    local maxAttempts = 20
+    local intervalMs = 2000
+    print('^3[TransactionInterceptor] Aguardando ServiceRegistry para inicializar...^7')
+
+    for _ = 1, maxAttempts do
+        if TI.Initialize() then
+            return
+        end
+        Wait(intervalMs)
     end
 
-    print('^1[TransactionInterceptor] Falha ao inicializar: ServiceRegistry não ficou pronto a tempo.^7')
+    print('^1[TransactionInterceptor] Inicialização adiada: ServiceRegistry não ficou pronto.^7')
 end)
 
 AddEventHandler('space_economy:serviceRegistryReady', function()
-    TI.Initialize()
+    if not TI.Initialized then
+        TI.Initialize()
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    TI.Initialized = false
 end)

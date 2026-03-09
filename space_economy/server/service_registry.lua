@@ -15,6 +15,7 @@ SR.TransactionLog = {}
 SR.UnregisteredDetections = {}
 SR.Ready = false
 SR._initializing = false
+SR._readyEmitted = false
 
 -- Tipos de serviços
 SR.ServiceTypes = {
@@ -690,20 +691,39 @@ function SR.IsReady()
     return SR.Ready == true
 end
 
+local function MarkRegistryReady()
+    if SR.Ready then return end
+
+    SR.Ready = true
+    SR._initializing = false
+
+    if not SR._readyEmitted then
+        SR._readyEmitted = true
+        TriggerEvent('space_economy:serviceRegistryReady')
+    end
+
+    print('^2[ServiceRegistry] Sistema inicializado com sucesso!^7')
+end
+
 function SR.Initialize()
     if SR.Ready or SR._initializing then return end
     SR._initializing = true
+
     print('^2[ServiceRegistry] Inicializando sistema de registro de serviços...^7')
 
-    -- Garante que as tabelas existam
-    EnsureTables()
+    local okTables, errTables = pcall(EnsureTables)
+    if not okTables then
+        SR._initializing = false
+        print(('^1[ServiceRegistry] Falha ao preparar tabelas: %s^7'):format(tostring(errTables)))
+        return
+    end
 
-    -- Carrega serviços do banco de dados
+    -- Carrega serviços persistidos (assíncrono)
     SR.LoadServicesFromDB()
 
     -- Registra serviços internos do space_economy
     Citizen.CreateThread(function()
-        Wait(2000) -- Aguarda outros sistemas carregarem
+        Wait(1000)
 
         SR.RegisterService('space_economy:treasury', {
             type = SR.ServiceTypes.GOVERNMENT,
@@ -747,12 +767,8 @@ function SR.Initialize()
         })
 
         print('^2[ServiceRegistry] Serviços internos registrados^7')
+        MarkRegistryReady()
     end)
-
-    SR.Ready = true
-    SR._initializing = false
-    TriggerEvent('space_economy:serviceRegistryReady')
-    print('^2[ServiceRegistry] Sistema inicializado com sucesso!^7')
 end
 
 -- Exporta para outros recursos

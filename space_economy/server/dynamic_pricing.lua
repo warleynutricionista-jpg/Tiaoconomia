@@ -14,6 +14,7 @@ DP.LastUpdate = 0
 DP.UpdateInterval = 300000 -- 5 minutos
 DP.Running = false
 DP.Ready = false
+DP.Boot = { waitingLogged = false, failedLogged = false }
 
 -- =====================================================
 -- FATORES QUE AFETAM PREÇOS
@@ -590,18 +591,20 @@ end
 -- =====================================================
 
 function DP.Initialize()
-    if DP.Ready then return end
+    if DP.Ready then
+        return true
+    end
 
     if not (SE.ServiceRegistry and SE.ServiceRegistry.IsReady and SE.ServiceRegistry.IsReady()) then
-        print('^3[DynamicPricing] Aguardando ServiceRegistry ficar pronto...^7')
         return false
     end
 
     print('^2[DynamicPricing] Inicializando sistema de preços dinâmicos...^7')
 
-    -- Carrega preços do banco
     DP.LoadPricesFromDB()
     DP.Ready = true
+    DP.Boot.waitingLogged = false
+    DP.Boot.failedLogged = false
     DP.StartScheduler()
 
     print('^2[DynamicPricing] Sistema inicializado com sucesso!^7')
@@ -631,23 +634,37 @@ end)
 
 -- Inicializa quando o resource começar
 Citizen.CreateThread(function()
-    local attempts = 0
-    while attempts < 30 do
-        attempts = attempts + 1
+    local maxAttempts = 12
+    local intervalMs = 5000
+
+    if not DP.Boot.waitingLogged then
+        DP.Boot.waitingLogged = true
+        print('^3[DynamicPricing] Aguardando ServiceRegistry para bootstrap...^7')
+    end
+
+    for _ = 1, maxAttempts do
         if DP.Initialize() then
             return
         end
-        Wait(1000)
+        Wait(intervalMs)
     end
 
-    print('^1[DynamicPricing] Falha ao inicializar: ServiceRegistry não ficou pronto a tempo.^7')
+    if not DP.Boot.failedLogged then
+        DP.Boot.failedLogged = true
+        print('^1[DynamicPricing] Bootstrap adiado: ServiceRegistry indisponível.^7')
+    end
 end)
 
 AddEventHandler('space_economy:serviceRegistryReady', function()
-    DP.Initialize()
+    if DP.Initialize() then
+        print('^2[DynamicPricing] Bootstrap liberado por ServiceRegistryReady.^7')
+    end
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     DP.StopScheduler()
+    DP.Ready = false
+    DP.Boot.waitingLogged = false
+    DP.Boot.failedLogged = false
 end)
