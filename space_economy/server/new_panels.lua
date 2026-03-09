@@ -21,6 +21,24 @@ local function notify(src, ntype, msg)
   })
 end
 
+
+local _tableExistsCache = {}
+local function tableExists(tableName)
+  if _tableExistsCache[tableName] ~= nil then
+    return _tableExistsCache[tableName]
+  end
+
+  if not MySQL then return false end
+
+  local ok, row = pcall(function()
+    return MySQL.single.await('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1', { tableName })
+  end)
+
+  local exists = ok and row ~= nil
+  _tableExistsCache[tableName] = exists
+  return exists
+end
+
 --============================================================
 -- PLAYER PANEL CALLBACKS
 --============================================================
@@ -94,7 +112,12 @@ lib.callback.register('space_economy:getMyOrganizations', function(source)
   end
 
   dbg('Cache MISS for player orgs:', citizenid)
-  local orgs = MySQL.query.await([[
+  if not tableExists('space_economy_organizations') then
+    return {}
+  end
+
+  local okOrgs, orgs = pcall(function()
+    return MySQL.query.await([[
     SELECT o.*, COUNT(DISTINCT m.id) as members
     FROM space_economy_organizations o
     LEFT JOIN space_economy_org_members m ON m.org_id = o.id
@@ -103,8 +126,9 @@ lib.callback.register('space_economy:getMyOrganizations', function(source)
     )
     GROUP BY o.id
   ]], { citizenid, citizenid })
+  end)
 
-  local result = orgs or {}
+  local result = (okOrgs and orgs) or {}
 
   -- Cache result
   if SE.Cache and SE.Cache.Set then
@@ -298,9 +322,15 @@ lib.callback.register('space_economy:getEconomyOverview', function(source)
 
   -- Organizations
   if MySQL then
-    local count = MySQL.scalar.await('SELECT COUNT(*) FROM space_economy_organizations')
-    data.totalOrgs = count or 0
-    data.activeOrgs = count or 0
+    if tableExists('space_economy_organizations') then
+      local okCount, count = pcall(function()
+        return MySQL.scalar.await('SELECT COUNT(*) FROM space_economy_organizations')
+      end)
+      if okCount then
+        data.totalOrgs = count or 0
+        data.activeOrgs = count or 0
+      end
+    end
   end
 
   -- Cache result
@@ -346,15 +376,21 @@ lib.callback.register('space_economy:getAllOrganizations', function(source)
   end
 
   dbg('Cache MISS for all organizations')
-  local orgs = MySQL.query.await([[
+  if not tableExists('space_economy_organizations') then
+    return {}
+  end
+
+  local okOrgs, orgs = pcall(function()
+    return MySQL.query.await([[
     SELECT o.*, COUNT(DISTINCT m.id) as members
     FROM space_economy_organizations o
     LEFT JOIN space_economy_org_members m ON m.org_id = o.id
     GROUP BY o.id
     ORDER BY o.id DESC
   ]])
+  end)
 
-  local result = orgs or {}
+  local result = (okOrgs and orgs) or {}
 
   -- Cache result
   if SE.Cache and SE.Cache.Set then

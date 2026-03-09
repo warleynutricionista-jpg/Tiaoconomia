@@ -431,10 +431,19 @@
       }, 100);
     },
 
-    close() {
+    close(notifyLua = true) {
       this.show(false);
       this.hideAllCards();
-      postNUI('forceClose');
+
+      const playerFrame = $('#player-panel-frame');
+      const staffFrame = $('#staff-panel-frame');
+      if (playerFrame) playerFrame.style.display = 'none';
+      if (staffFrame) staffFrame.style.display = 'none';
+
+      document.body.classList.remove('modal-open');
+      $$('.modal-overlay').forEach((m) => m.classList.remove('active'));
+
+      if (notifyLua) postNUI('forceClose');
     },
 
     setBusy(busy) {
@@ -1586,6 +1595,7 @@
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && State.uiOpen) {
+        e.preventDefault();
         UI.close();
       }
 
@@ -1619,7 +1629,7 @@
 
     switch (action) {
       case 'close':
-        UI.close();
+        UI.close(false);
         break;
 
       case 'open': {
@@ -1716,6 +1726,7 @@
 
       case 'openPlayerPanel': {
         log('Opening Player Panel (v5.0)...');
+        State.uiOpen = true;
         // Hide old panels
         const overlay = $('.overlay');
         if (overlay) overlay.setAttribute('aria-hidden', 'true');
@@ -1734,6 +1745,7 @@
 
       case 'openStaffPanel': {
         log('Opening Staff Panel (v5.0)...');
+        State.uiOpen = true;
         // Hide old panels
         const overlay = $('.overlay');
         if (overlay) overlay.setAttribute('aria-hidden', 'true');
@@ -1752,23 +1764,25 @@
 
       case 'closePlayerPanel': {
         log('Closing Player Panel...');
+        State.uiOpen = false;
         const playerFrame = $('#player-panel-frame');
         if (playerFrame) {
-          // Send close message to iframe
-          playerFrame.contentWindow.postMessage({ action: 'close' }, '*');
+          playerFrame.contentWindow.postMessage({ action: 'close', silent: true }, '*');
           playerFrame.style.display = 'none';
         }
+        postNUI('forceClose');
         break;
       }
 
       case 'closeStaffPanel': {
         log('Closing Staff Panel...');
+        State.uiOpen = false;
         const staffFrame = $('#staff-panel-frame');
         if (staffFrame) {
-          // Send close message to iframe
-          staffFrame.contentWindow.postMessage({ action: 'close' }, '*');
+          staffFrame.contentWindow.postMessage({ action: 'close', silent: true }, '*');
           staffFrame.style.display = 'none';
         }
+        postNUI('forceClose');
         break;
       }
 
@@ -1791,6 +1805,7 @@
     if (data.action === 'closeFromIframe') {
       const panelType = data.panelType;
       log('Iframe requested close:', panelType);
+      State.uiOpen = false;
 
       if (panelType === 'player') {
         const playerFrame = $('#player-panel-frame');
@@ -1799,6 +1814,8 @@
         const staffFrame = $('#staff-panel-frame');
         if (staffFrame) staffFrame.style.display = 'none';
       }
+
+      postNUI('forceClose');
     }
   });
 
