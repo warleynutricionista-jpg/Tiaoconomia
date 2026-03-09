@@ -50,9 +50,12 @@ end
 CreateThread(function()
   while true do
     Wait(0)
-    if C.isOpen and IsControlJustReleased(0, 200) then -- ESC
-      C.CloseUI()
-      TriggerServerEvent('space_economy:server_forceClose') -- opcional (se existir)
+    if (SE.Client and SE.Client.EconomyUIOpen) and IsControlJustReleased(0, 200) then -- ESC
+      if SE.Client.CloseEconomyUI then
+        SE.Client.CloseEconomyUI()
+      else
+        C.CloseUI()
+      end
     end
   end
 end)
