@@ -486,7 +486,7 @@ function TI.NotifyAdmins(type, data)
                 type = 'transaction_interceptor',
                 subtype = type,
                 data = data
-            }) end
+            })
         end
     end
 end
