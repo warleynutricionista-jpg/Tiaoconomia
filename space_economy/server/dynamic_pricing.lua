@@ -12,6 +12,8 @@ local DP = SE.DynamicPricing
 DP.PriceCache = {}
 DP.LastUpdate = 0
 DP.UpdateInterval = 300000 -- 5 minutos
+DP.Running = false
+DP.Ready = false
 
 -- =====================================================
 -- FATORES QUE AFETAM PREÇOS
@@ -292,6 +294,10 @@ function DP.UpdateAllPrices()
     end
 
     -- Busca preços de serviços registrados e atualiza
+    if not (SE.ServiceRegistry and SE.ServiceRegistry.IsReady and SE.ServiceRegistry.IsReady()) then
+        return
+    end
+
     if SE.ServiceRegistry and SE.ServiceRegistry.GetAllServices then
         local services = SE.ServiceRegistry.GetAllServices()
         for serviceName, service in pairs(services) do
@@ -338,8 +344,6 @@ function DP.UpdateAllPrices()
                 end
             end
         end
-    else
-        print('^3[DynamicPricing] ServiceRegistry indisponível, pulando preços de serviços registrados.^7')
     end
 
     local elapsed = GetGameTimer() - startTime
@@ -361,12 +365,30 @@ function DP.UpdateAllPrices()
 end
 
 ---Thread de atualização automática
-Citizen.CreateThread(function()
-    while true do
-        Wait(DP.UpdateInterval)
-        DP.UpdateAllPrices()
+function DP.StartScheduler()
+    if DP.Running then
+        print('^3[DynamicPricing] Scheduler já ativo; pulando start duplicado.^7')
+        return
     end
-end)
+
+    DP.Running = true
+    print('^2[DynamicPricing] Scheduler iniciado.^7')
+
+    CreateThread(function()
+        while DP.Running do
+            Wait(DP.UpdateInterval)
+            if DP.Running and DP.Ready then
+                DP.UpdateAllPrices()
+            end
+        end
+    end)
+end
+
+function DP.StopScheduler()
+    if not DP.Running then return end
+    DP.Running = false
+    print('^3[DynamicPricing] Scheduler finalizado.^7')
+end
 
 -- =====================================================
 -- INTEGRAÇÃO COM SERVIÇOS EXTERNOS
@@ -568,12 +590,22 @@ end
 -- =====================================================
 
 function DP.Initialize()
+    if DP.Ready then return end
+
+    if not (SE.ServiceRegistry and SE.ServiceRegistry.IsReady and SE.ServiceRegistry.IsReady()) then
+        print('^3[DynamicPricing] Aguardando ServiceRegistry ficar pronto...^7')
+        return false
+    end
+
     print('^2[DynamicPricing] Inicializando sistema de preços dinâmicos...^7')
 
     -- Carrega preços do banco
     DP.LoadPricesFromDB()
+    DP.Ready = true
+    DP.StartScheduler()
 
     print('^2[DynamicPricing] Sistema inicializado com sucesso!^7')
+    return true
 end
 
 -- Exporta para outros recursos
@@ -599,6 +631,23 @@ end)
 
 -- Inicializa quando o resource começar
 Citizen.CreateThread(function()
-    Wait(3000) -- Aguarda outros sistemas
+    local attempts = 0
+    while attempts < 30 do
+        attempts = attempts + 1
+        if DP.Initialize() then
+            return
+        end
+        Wait(1000)
+    end
+
+    print('^1[DynamicPricing] Falha ao inicializar: ServiceRegistry não ficou pronto a tempo.^7')
+end)
+
+AddEventHandler('space_economy:serviceRegistryReady', function()
     DP.Initialize()
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    DP.StopScheduler()
 end)
