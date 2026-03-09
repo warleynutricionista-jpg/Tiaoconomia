@@ -53,7 +53,7 @@ RegisterCommand('taxas', function()
   end
 end, false)
 
-RegisterCommand('eco_open_adminpanel', function()
+RegisterCommand('eco_adminpanel_f12', function()
   n('Solicitando painel administrativo...', 'inform')
   if SE and SE.Client and SE.Client.OpenAdminPanel then
     SE.Client.OpenAdminPanel()
@@ -62,11 +62,14 @@ RegisterCommand('eco_open_adminpanel', function()
   end
 end, false)
 
-
--- Neutralizador de bind legado: se algum cliente ainda tiver F10 -> comando `admin`,
--- não abre painel algum. O atalho oficial é F12 (`eco_open_adminpanel`).
+-- Neutralizador de bind legado: qualquer keymap antigo (ex.: F10) que ainda
+-- aponte para `admin` ou `eco_open_adminpanel` não deve abrir painel algum.
 RegisterCommand('admin', function()
   n('Comando /admin legado desativado neste recurso. Use F12 para painel administrativo.', 'error')
+end, false)
+
+RegisterCommand('eco_open_adminpanel', function()
+  n('Bind legado detectado (eco_open_adminpanel). Refaça o keybind oficial no F12.', 'error')
 end, false)
 
 RegisterCommand('eco_testui', function()
@@ -78,7 +81,7 @@ RegisterCommand('eco_testui', function()
 end, false)
 
 RegisterKeyMapping('taxas', 'Economia: abrir painel de impostos', 'keyboard', 'F7')
-RegisterKeyMapping('eco_open_adminpanel', 'Economia: abrir painel administrativo', 'keyboard', 'F12')
+RegisterKeyMapping('eco_adminpanel_f12', 'Economia: abrir painel administrativo', 'keyboard', 'F12')
 RegisterKeyMapping('eco_testui', 'Economia: TESTE abrir NUI admin local', 'keyboard', '5')
 
 CreateThread(function()
@@ -88,7 +91,7 @@ CreateThread(function()
     -- TriggerEvent('chat:addSuggestion', '/taxas', 'Abrir painel de impostos/pagamentos') -- DESATIVADO v5.0
     -- TriggerEvent('chat:addSuggestion', '/economia', 'Abrir painel administrativo (requer permissão)') -- DESATIVADO v5.0
     TriggerEvent('chat:addSuggestion', '/taxas', 'Abrir painel de impostos')
-    TriggerEvent('chat:addSuggestion', '/eco_open_adminpanel', 'Abrir painel administrativo (requer permissão)')
+    TriggerEvent('chat:addSuggestion', '/eco_adminpanel_f12', 'Abrir painel administrativo (requer permissão)')
     TriggerEvent('chat:addSuggestion', '/eco_testui', 'TESTE: abrir painel admin local (diagnóstico NUI)')
   end)
 end)
