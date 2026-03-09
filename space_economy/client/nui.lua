@@ -9,6 +9,9 @@ SE.Client = SE.Client or {}
 
 local uiOpen = false
 local uiAck = false
+local currentPanel = nil
+
+SE.Client.EconomyUIOpen = false
 
 -- usado quando abrimos modo "payment" (opcional)
 local lastPayment = { tax = 0, reason = 'Imposto' }
@@ -20,6 +23,7 @@ end
 
 local function openUI(mode, payload)
   uiOpen = true
+  SE.Client.EconomyUIOpen = true
   uiAck = false
 
   payload = payload or {}
@@ -71,11 +75,42 @@ local function openUI(mode, payload)
   end)
 end
 
-local function closeUI()
-  if not uiOpen then return end
+local function applyClosedState()
   uiOpen = false
+  currentPanel = nil
+  uiAck = false
+  SE.Client.EconomyUIOpen = false
   setFocus(false)
-  SendNUIMessage({ action = 'close' })
+end
+
+local function closeUI(notifyNui)
+  applyClosedState()
+  if notifyNui ~= false then
+    SendNUIMessage({ action = 'close' })
+  end
+end
+
+function SE.Client.OpenTaxPanel()
+  if uiOpen then return end
+  currentPanel = 'tax'
+  SE.Client.EconomyUIOpen = true
+  openUI('tax', {})
+end
+
+function SE.Client.OpenAdminPanel()
+  if uiOpen then return end
+  currentPanel = 'staff'
+  TriggerServerEvent('space_economy:server_openStaffPanel')
+end
+
+function SE.Client.OpenUITest()
+  if uiOpen then return end
+  currentPanel = 'test'
+  TriggerEvent('space_economy:client_open', 'admin', {})
+end
+
+function SE.Client.CloseEconomyUI()
+  closeUI(true)
 end
 
 --============================================================
@@ -210,14 +245,16 @@ end)
 -- NEW PLAYER PANEL
 --============================================================
 RegisterNetEvent('space_economy:client_open_player', function()
-  SetNuiFocus(true, true)
-  SendNUIMessage({
-    action = 'openPlayerPanel'
-  })
+  if uiOpen then return end
+  uiOpen = true
+  currentPanel = 'player'
+  SE.Client.EconomyUIOpen = true
+  setFocus(true)
+  SendNUIMessage({ action = 'openPlayerPanel' })
 end)
 
 RegisterNUICallback('closePlayerPanel', function(_, cb)
-  SetNuiFocus(false, false)
+  closeUI(false)
   cb({ ok = true })
 end)
 
@@ -298,14 +335,16 @@ end)
 -- NEW STAFF PANEL
 --============================================================
 RegisterNetEvent('space_economy:client_open_staff', function()
-  SetNuiFocus(true, true)
-  SendNUIMessage({
-    action = 'openStaffPanel'
-  })
+  if uiOpen then return end
+  uiOpen = true
+  currentPanel = 'staff'
+  SE.Client.EconomyUIOpen = true
+  setFocus(true)
+  SendNUIMessage({ action = 'openStaffPanel' })
 end)
 
 RegisterNUICallback('closeStaffPanel', function(_, cb)
-  SetNuiFocus(false, false)
+  closeUI(false)
   cb({ ok = true })
 end)
 
@@ -350,6 +389,12 @@ RegisterNUICallback('getCacheStats', function(_, cb)
   TriggerServerCallback('space_economy:getCacheStats', function(data)
     cb({ success = true, data = data })
   end)
+end)
+
+
+AddEventHandler('onResourceStop', function(resourceName)
+  if resourceName ~= GetCurrentResourceName() then return end
+  closeUI(true)
 end)
 
 -- Helper function for callbacks (if not already present)

@@ -46,6 +46,7 @@ if Config then
 end
 
 DBInt.State = {
+  active = true,
   initialized = false,
   running = {},
   lastCheck = {},
@@ -58,6 +59,39 @@ DBInt.State = {
 local function SafeStr(v, fb) if v == nil then return fb or '' end v=tostring(v) if v=='' then return fb or '' end return v end
 local function SafeNum(v, fb) v=tonumber(v) if not v then return fb or 0 end return v end
 local function NowStr() return os.date('%Y-%m-%d %H:%M:%S') end
+
+local function NormalizeDateTime(v)
+  if v == nil then return nil end
+
+  if type(v) == 'number' then
+    local n = tonumber(v)
+    if not n then return nil end
+    if n > 9999999999 then n = math.floor(n / 1000) end -- ms -> s
+    if n <= 0 then return nil end
+    return os.date('%Y-%m-%d %H:%M:%S', n)
+  end
+
+  local str = tostring(v):gsub('^%s+', ''):gsub('%s+$', '')
+  if str == '' then return nil end
+
+  local asNum = tonumber(str)
+  if asNum then
+    if asNum > 9999999999 then asNum = math.floor(asNum / 1000) end
+    if asNum > 0 then
+      return os.date('%Y-%m-%d %H:%M:%S', asNum)
+    end
+    return nil
+  end
+
+  -- suporta ISO simples: 2025-01-01T10:20:30Z
+  str = str:gsub('T', ' '):gsub('Z$', '')
+
+  if str:match('^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d$') then
+    return str
+  end
+
+  return nil
+end
 local function PeriodMonth() return os.date('%Y%m') end
 local function PeriodYear() return os.date('%Y') end
 local function JsonEncodeSafe(t)
@@ -594,6 +628,8 @@ function DBInt.UpdateStats(systemName, processedDelta, errorsDelta, lastTxDate)
 
   DBInt.EnsureConfigRow(systemName)
 
+  local normalizedLastTx = NormalizeDateTime(lastTxDate)
+
   MySQL.update.await([[
     UPDATE space_economy_integration_config
        SET last_check = NOW(),
@@ -601,7 +637,7 @@ function DBInt.UpdateStats(systemName, processedDelta, errorsDelta, lastTxDate)
            total_errors = total_errors + ?,
            last_transaction_date = COALESCE(?, last_transaction_date)
      WHERE source_system = ?
-  ]], { processedDelta, errorsDelta, lastTxDate, systemName })
+  ]], { processedDelta, errorsDelta, normalizedLastTx, systemName })
 end
 
 function DBInt.GetLastTransactionDate(systemName)
@@ -724,7 +760,7 @@ function DBInt.ProcessBankingTransactions()
       local txId = SafeStr(tx.id, '')
       local citizenid = SafeStr(tx.citizenid, '')
       local amount = SafeNum(tx.amount, 0)
-      local txDate = SafeStr(tx.transaction_date, NowStr())
+      local txDate = NormalizeDateTime(tx.transaction_date) or NowStr()
       newestDate = txDate
 
       if txId == '' or citizenid == '' then
@@ -1094,6 +1130,13 @@ function DBInt.StartSchedulers()
     return
   end
 
+  if DBInt.State.schedulersStarted then
+    DBInt.Debug('Schedulers já iniciados; evitando duplicação.')
+    return
+  end
+
+  DBInt.State.schedulersStarted = true
+  DBInt.State.active = true
   print('[^2SPACE ECONOMY DB-INT^7] Iniciando schedulers de integração...')
 
   for systemName, sys in pairs(DBInt.Config.Systems) do
@@ -1101,13 +1144,21 @@ function DBInt.StartSchedulers()
       CreateThread(function()
         Wait(10000)
         DBInt.Debug(('Scheduler ativo: %s (intervalo %dms)'):format(systemName, sys.interval))
-        while true do
+        while DBInt.State.active do
           DBInt.CheckSystem(systemName)
           Wait(sys.interval)
         end
+        DBInt.Debug(('Scheduler encerrado: %s'):format(systemName))
       end)
     end
   end
+end
+
+function DBInt.StopSchedulers()
+  if not DBInt.State.schedulersStarted then return end
+  DBInt.State.active = false
+  DBInt.State.schedulersStarted = false
+  print('[^3SPACE ECONOMY DB-INT^7] Schedulers finalizados.')
 end
 
 function DBInt.Initialize()
@@ -1170,6 +1221,12 @@ exports('ForceCheckSystem', function(systemName)
     return true
   end
   return false
+end)
+
+
+AddEventHandler('onResourceStop', function(resourceName)
+  if resourceName ~= GetCurrentResourceName() then return end
+  DBInt.StopSchedulers()
 end)
 
 print('[^2SPACE ECONOMY^7] db_integrations.lua carregado (QBOX Hardened / sem goto)')
